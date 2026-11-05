@@ -36,15 +36,13 @@ Tasks only run inside folders the PC shares in `agent.config.json`; the hub and 
 ## Requirements
 
 - Node.js 24+
-- Docker Desktop (for Postgres) on the hub PC
 - Claude Code installed and signed in on every PC that will run agents
+- No Docker needed: the hub PC runs Postgres itself (data in `data/postgres`). The root `docker-compose.yml` still works if you prefer Docker; set the port in `DATABASE_URL` to 5433 then.
 
 ## Setup on the hub PC
 
 ```bash
 npm install
-npm run build:shared
-npm run db:up
 ```
 
 Create `apps/hub/.env` from `apps/hub/.env.example`. Generate the agent token once and use the same value on every PC:
@@ -53,23 +51,35 @@ Create `apps/hub/.env` from `apps/hub/.env.example`. Generate the agent token on
 node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
 ```
 
-Create the database tables and start the hub:
+Set up this PC's node agent too (see the next section), then build everything and start it:
 
 ```bash
-cd apps/hub
-npx prisma migrate deploy
-npx prisma generate
-cd ../..
-npm run dev:hub
+npm run build:all
+npm run serve
 ```
 
-Start the dashboard and open http://localhost:3000 (from other PCs: `http://<hub-pc-ip>:3000`):
+`npm run serve` starts Postgres, applies new database changes, then starts the hub, the dashboard and this PC's node agent. Any of them that stops starts again by itself; output goes to `logs/`. Stop it with Ctrl+C, or `npm run serve:stop` when it runs hidden. Add `-- --no-agent` to leave the node agent out.
+
+Open the dashboard at http://localhost:3000, from other PCs and phones on the LAN at `http://<hub-pc-ip>:3000`. Windows Firewall asks to allow Node.js the first time; allow it so the other PCs can reach ports 3000 and 4000.
+
+### Keep it running
+
+Start smart-team hidden every time you sign in to Windows (Task Scheduler), and turn that off again:
 
 ```bash
-npm run dev:dashboard
+npm run autostart
+npm run autostart:off
 ```
 
-Windows Firewall will ask to allow Node.js the first time. Allow it on private networks so the other PCs can reach ports 3000 and 4000.
+After `git pull`, run `npm run build:all` and restart: `npm run serve:stop`, then `npm run serve` (or sign out and in).
+
+### Watch from outside home
+
+The hub has no login yet, so never put it on the public internet (port forwarding, Vercel and the like). Use [Tailscale](https://tailscale.com) instead: install it on the hub PC and your phone, sign in to the same account, then open `http://<hub-pc-tailscale-name-or-100.x-ip>:3000`. Only your own devices can reach it, and `DASHBOARD_ORIGIN=private` already allows Tailscale addresses.
+
+### While developing
+
+`npm run db` starts only Postgres; then `npm run dev:hub` and `npm run dev:dashboard` reload on every change.
 
 ## Setup on every PC (including the hub PC)
 

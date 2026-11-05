@@ -7,7 +7,13 @@
   ],
   "scripts": {
     "build:shared": "npm run build -w @smart-team/shared",
+    "build:all": "npm run build:shared && npm run generate -w @smart-team/hub && npm run build -w @smart-team/hub && npm run build -w @smart-team/dashboard && npm run build -w @smart-team/node-agent",
+    "db": "node apps/hub/scripts/postgres.mjs",
     "db:up": "docker compose up -d",
+    "serve": "node scripts/serve.mjs",
+    "serve:stop": "node scripts/serve.mjs --stop",
+    "autostart": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/autostart.ps1",
+    "autostart:off": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/autostart.ps1 -Remove",
     "dev:hub": "npm run dev -w @smart-team/hub",
     "dev:agent": "npm run dev -w @smart-team/node-agent",
     "dev:dashboard": "npm run dev -w @smart-team/dashboard",

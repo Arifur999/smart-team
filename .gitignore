@@ -8,3 +8,5 @@ dist/
 apps/hub/src/generated/
 apps/hub/uploads/
 apps/node-agent/agent.config.json
+data/
+logs/

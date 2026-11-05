@@ -9,13 +9,14 @@ import {
 } from '@nestjs/websockets';
 import { DASHBOARD_NAMESPACE, DashboardEvents, type BotMessageView, type TaskLogEvent, type TaskSummary } from '@smart-team/shared';
 import type { Namespace, Socket } from 'socket.io';
+import { corsOrigin } from '../cors.js';
 import { DevicesService } from '../devices/devices.service.js';
 import { getEnv } from '../env.js';
 
 const taskRoom = (taskId: string) => `task:${taskId}`;
 
 // No login yet: the hub only listens on the LAN. Dashboard auth comes before the command bot.
-@WebSocketGateway({ namespace: DASHBOARD_NAMESPACE, cors: { origin: getEnv().DASHBOARD_ORIGIN } })
+@WebSocketGateway({ namespace: DASHBOARD_NAMESPACE, cors: { origin: corsOrigin(getEnv().DASHBOARD_ORIGIN) } })
 export class DashboardGateway implements OnGatewayConnection {
   @WebSocketServer()
   private readonly server!: Namespace;
