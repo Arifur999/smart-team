@@ -26,25 +26,29 @@ const grid = (x0: number, y0: number, cols: number, rows: number, dx: number, dy
   Array.from({ length: rows * cols }, (_, i) => ({ x: x0 + (i % cols) * dx, y: y0 + Math.floor(i / cols) * dy }));
 
 /** Workspace desks (top-left of each desk). People sit behind them, so their slot is just above the desk. */
-export const DESKS: Point[] = grid(55, 300, 3, 2, 150, 92);
-export const DESK_W = 96;
+export const DESKS: Point[] = grid(48, 286, 3, 2, 150, 84);
+export const DESK_W = 100;
+
+/** Command Center consoles (top-left). Leaders stand behind them. */
+export const CONSOLES: Point[] = grid(560, 300, 2, 2, 210, 72);
+export const CONSOLE_W = 170;
 
 /** Beds in the rest room (top-left). */
-export const BEDS: Point[] = grid(842, 478, 2, 2, 66, 70);
+export const BEDS: Point[] = grid(866, 478, 2, 2, 58, 68);
 
+/** Rooms sit on a corridor floor with 16 px gaps, like a real floor plan. */
 export const ROOMS: Room[] = [
-  { id: 'briefing', label: 'Briefing Room', x: 20, y: 20, w: 280, h: 190, slots: grid(75, 190, 4, 1, 55, 0) },
-  { id: 'command', label: 'Command Center', x: 310, y: 20, w: 360, h: 190, slots: grid(395, 172, 4, 1, 64, 0) },
-  { id: 'approval', label: 'Approval Room', x: 680, y: 20, w: 300, h: 190, slots: grid(760, 182, 3, 1, 70, 0) },
-  { id: 'workspace', label: 'Workspace', x: 20, y: 220, w: 470, h: 210, slots: DESKS.map((d) => ({ x: d.x + DESK_W / 2, y: d.y + 8 })) },
-  { id: 'lab', label: 'R&D Lab', x: 500, y: 220, w: 250, h: 210, slots: grid(560, 412, 3, 1, 62, 0) },
-  { id: 'server', label: 'Server Room', x: 760, y: 220, w: 220, h: 210, slots: grid(815, 412, 3, 1, 55, 0) },
-  { id: 'meeting', label: 'Meeting Room', x: 20, y: 440, w: 300, h: 180, slots: grid(65, 608, 5, 1, 55, 0) },
-  { id: 'lounge', label: 'Lounge', x: 330, y: 440, w: 330, h: 180, slots: grid(372, 560, 4, 2, 76, 54) },
-  { id: 'pantry', label: 'Pantry', x: 670, y: 440, w: 150, h: 180, slots: grid(712, 610, 2, 1, 66, 0) },
-  { id: 'rest', label: 'Rest Room', x: 830, y: 440, w: 150, h: 180, slots: BEDS.map((b) => ({ x: b.x + 26, y: b.y + 44 })) },
+  { id: 'briefing', label: 'Briefing Room', x: 16, y: 16, w: 280, h: 176, slots: grid(64, 178, 4, 1, 60, 0) },
+  { id: 'meeting', label: 'Meeting Room', x: 312, y: 16, w: 360, h: 176, slots: grid(372, 180, 5, 1, 60, 0) },
+  { id: 'approval', label: 'Approval Room', x: 688, y: 16, w: 296, h: 176, slots: grid(776, 176, 3, 1, 62, 0) },
+  { id: 'workspace', label: 'Workspace', x: 16, y: 208, w: 470, h: 220, slots: DESKS.map((d) => ({ x: d.x + DESK_W / 2, y: d.y + 6 })) },
+  { id: 'command', label: 'Command Center', x: 502, y: 208, w: 482, h: 220, slots: CONSOLES.map((c) => ({ x: c.x + CONSOLE_W / 2, y: c.y + 4 })) },
+  { id: 'lounge', label: 'Lounge', x: 16, y: 444, w: 250, h: 180, slots: grid(58, 566, 3, 2, 76, 52) },
+  { id: 'pantry', label: 'Pantry', x: 282, y: 444, w: 190, h: 180, slots: grid(320, 610, 3, 1, 56, 0) },
+  { id: 'lab', label: 'R&D Lab', x: 488, y: 444, w: 200, h: 180, slots: grid(528, 610, 3, 1, 60, 0) },
+  { id: 'server', label: 'Server Room', x: 704, y: 444, w: 140, h: 180, slots: grid(740, 610, 2, 1, 64, 0) },
+  { id: 'rest', label: 'Rest Room', x: 860, y: 444, w: 124, h: 180, slots: BEDS.map((b) => ({ x: b.x + 25, y: b.y + 46 })) },
 ];
-
 export type Tone = 'busy' | 'waiting' | 'idle' | 'off';
 export type Pose = 'stand' | 'type' | 'sleep';
 
@@ -124,7 +128,7 @@ export function officeMembers(teamId: TeamId, tasks: TaskSummary[]): OfficeMembe
 }
 
 /** When the lounge is full, idle people wander into the pantry, then the meeting room. */
-const OVERFLOW: Partial<Record<RoomId, RoomId>> = { lounge: 'pantry', pantry: 'meeting' };
+const OVERFLOW: Partial<Record<RoomId, RoomId>> = { lounge: 'pantry', pantry: 'meeting', command: 'meeting' };
 
 /** Gives everyone the next free slot of their room, in list order, so positions are stable. */
 function placeInRooms<T extends { activity: Activity }>(people: T[]): (T & { position: Point })[] {

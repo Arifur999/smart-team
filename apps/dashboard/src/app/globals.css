@@ -76,38 +76,28 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Office characters (CharacterSprite). Each part rotates around its joint. */
-.sprite .leg-l { transform-origin: 16.5px 40px; }
-.sprite .leg-r { transform-origin: 23.5px 40px; }
-.sprite .arm-l { transform-origin: 9.7px 29.5px; }
-.sprite .arm-r { transform-origin: 30.3px 29.5px; }
-.sprite .head { transform-origin: 20px 26px; }
-
-@keyframes leg-swing { from { transform: rotate(-22deg); } to { transform: rotate(22deg); } }
-@keyframes arm-swing { from { transform: rotate(18deg); } to { transform: rotate(-18deg); } }
-/* Arms reach in towards the keyboard: the left arm turns anticlockwise, the right one clockwise. */
-@keyframes typing-l { 0%, 100% { transform: rotate(-38deg); } 50% { transform: rotate(-28deg); } }
-@keyframes typing-r { 0%, 100% { transform: rotate(38deg); } 50% { transform: rotate(28deg); } }
-@keyframes nod { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(3deg); } }
-@keyframes breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(0.6px); } }
-@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+/* Office characters (PixelSprite). Parts move by whole pixels, like an old game. */
+@keyframes px-step { 0%, 49% { transform: translateY(0); } 50%, 100% { transform: translateY(-1px); } }
+@keyframes px-type { 0%, 49% { transform: translateY(0); } 50%, 100% { transform: translateY(-1px); } }
+@keyframes px-breathe { 0%, 69% { transform: translateY(0); } 70%, 100% { transform: translateY(0.5px); } }
 @keyframes zzz { 0% { opacity: 0; transform: translate(0, 0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(6px, -12px); } }
-@keyframes screen-flicker { 0%, 100% { opacity: 0.9; } 50% { opacity: 0.65; } }
+@keyframes screen-flicker { 0%, 100% { opacity: 0.95; } 50% { opacity: 0.7; } }
 @keyframes led { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@keyframes lamp { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
+@keyframes bubble-in { from { opacity: 0; transform: translateY(3px) scale(0.92); } to { opacity: 1; transform: none; } }
 
-.sprite-walk .leg-l { animation: leg-swing 0.32s ease-in-out infinite alternate; }
-.sprite-walk .leg-r { animation: leg-swing 0.32s ease-in-out infinite alternate-reverse; }
-.sprite-walk .arm-l { animation: arm-swing 0.32s ease-in-out infinite alternate-reverse; }
-.sprite-walk .arm-r { animation: arm-swing 0.32s ease-in-out infinite alternate; }
-.sprite-type .arm-l { animation: typing-l 0.28s ease-in-out infinite; }
-.sprite-type .arm-r { animation: typing-r 0.28s ease-in-out infinite 0.14s; }
-.sprite-type .head { animation: nod 2.4s ease-in-out infinite; }
-.sprite-stand .head, .sprite-sleep .head { animation: breathe 3s ease-in-out infinite; }
-.sprite .eye { transform-box: fill-box; transform-origin: center; animation: blink 4.5s infinite; }
+.pose-walk .px-leg-l { animation: px-step 0.36s steps(1) infinite; }
+.pose-walk .px-leg-r { animation: px-step 0.36s steps(1) infinite 0.18s; }
+.pose-walk .px-arm-l { animation: px-step 0.36s steps(1) infinite 0.18s; }
+.pose-walk .px-arm-r { animation: px-step 0.36s steps(1) infinite; }
+.pose-type .px-arm-l { animation: px-type 0.24s steps(1) infinite; }
+.pose-type .px-arm-r { animation: px-type 0.24s steps(1) infinite 0.12s; }
+.pose-stand .px-body, .pose-sleep .px-body { animation: px-breathe 2.8s steps(1) infinite; }
 .zzz { animation: zzz 2.4s ease-out infinite; }
 .screen { animation: screen-flicker 3s ease-in-out infinite; }
 .led { animation: led 1.6s ease-in-out infinite; }
-
+.lamp { animation: lamp 4s ease-in-out infinite; }
+.bubble-in { animation: bubble-in 0.25s ease-out; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

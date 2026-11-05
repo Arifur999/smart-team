@@ -1,6 +1,7 @@
 /**
- * How each member is drawn. Original designs: colours and hair hint at the hero, but there are no
- * costumes, logos or likenesses copied from anywhere.
+ * How each member is drawn. These are original office-crew characters: everyday clothes in their
+ * team's colours, varied hair and skin. Only the names come from elsewhere; no costumes, logos or
+ * likenesses are copied.
  */
 export type HairStyle = 'short' | 'spiky' | 'long' | 'bun' | 'bald' | 'hood' | 'helmet' | 'mohawk' | 'leafy';
 
@@ -10,56 +11,58 @@ export interface Look {
   hairStyle: HairStyle;
   top: string;
   bottom: string;
-  /** Belt, collar and shoe colour. */
+  /** Collar, belt and shoe colour. */
   accent: string;
-  /** Glowing eye strip instead of eyes. */
+  /** Glasses or a visor strip instead of eyes (used for the AI helpers). */
   visor?: string;
   /** Bigger or smaller than the default build. */
   scale?: number;
-  /** A cape behind the body. */
+  /** A scarf or long coat tail showing at the sides. */
   cape?: string;
 }
 
-const SKIN = { light: '#f2c9a0', mid: '#d9a273', tan: '#c68a5a', deep: '#8d5a3b', dark: '#6b4128' };
+const SKIN = { light: '#f3cfa8', fair: '#eab98f', mid: '#d39b6a', tan: '#b97e52', deep: '#8a5a3a', dark: '#5f3b25' };
+const HAIR = { black: '#1d1a1f', brown: '#5a3a24', chestnut: '#7a4a2a', blond: '#e0b45c', red: '#a8442c', grey: '#9aa0aa', white: '#e8e8ee', navy: '#2b3a66' };
 
+// Team palettes: nextDev red, nextEditor violet, nextDesign teal, NextMarketer amber, leadership slate.
 export const LOOKS: Record<string, Look> = {
   // Leadership
-  'nick-fury': { skin: SKIN.deep, hair: '#1f1f1f', hairStyle: 'bald', top: '#1c1f26', bottom: '#15171c', accent: '#5b6170', visor: '#111' },
-  'maria-hill': { skin: SKIN.light, hair: '#2b1d14', hairStyle: 'bun', top: '#2d3a55', bottom: '#1e2638', accent: '#8aa0c8' },
-  'captain-marvel': { skin: SKIN.light, hair: '#e3b860', hairStyle: 'long', top: '#2f4fa8', bottom: '#b8322b', accent: '#e9c348' },
-  friday: { skin: '#b9d8ff', hair: '#78a8ff', hairStyle: 'short', top: '#3a5c99', bottom: '#2a4170', accent: '#9cc7ff', visor: '#7fd3ff' },
-  jarvis: { skin: '#cfd8e3', hair: '#8fa3bb', hairStyle: 'helmet', top: '#4b5a70', bottom: '#38455a', accent: '#a7f3ff', visor: '#5eead4' },
+  'nick-fury': { skin: SKIN.dark, hair: HAIR.black, hairStyle: 'bald', top: '#2b2f3a', bottom: '#1d2029', accent: '#8a93a6' },
+  'maria-hill': { skin: SKIN.light, hair: HAIR.brown, hairStyle: 'bun', top: '#3a4a6b', bottom: '#262f44', accent: '#a9b8d6' },
+  'captain-marvel': { skin: SKIN.fair, hair: HAIR.blond, hairStyle: 'short', top: '#4a5a80', bottom: '#2c3550', accent: '#d8c27a' },
+  friday: { skin: '#cfe1f5', hair: '#7aa8e8', hairStyle: 'helmet', top: '#3d5c94', bottom: '#2a406b', accent: '#9cc7ff', visor: '#7fe0ff' },
+  jarvis: { skin: '#d5dbe4', hair: '#8794a8', hairStyle: 'helmet', top: '#4a5568', bottom: '#343d4d', accent: '#a7f3d0', visor: '#5eead4' },
 
-  // nextDev
-  'iron-man': { skin: SKIN.mid, hair: '#3a2416', hairStyle: 'short', top: '#b3261e', bottom: '#8f1d17', accent: '#e8b33b', visor: '#ffe9a3' },
-  hulk: { skin: '#5a9a3f', hair: '#1f2a14', hairStyle: 'spiky', top: '#6b3fa0', bottom: '#4b2c74', accent: '#2f5a22', scale: 1.18 },
-  'spider-man': { skin: SKIN.light, hair: '#3a2416', hairStyle: 'hood', top: '#c62828', bottom: '#1f4fa8', accent: '#1a1a1a', visor: '#e8f1ff' },
-  'black-panther': { skin: SKIN.dark, hair: '#151515', hairStyle: 'hood', top: '#22222b', bottom: '#18181f', accent: '#9b8cff', visor: '#d6d0ff' },
-  vision: { skin: '#c2413b', hair: '#8a2b26', hairStyle: 'bald', top: '#2f6e4a', bottom: '#245539', accent: '#e8c547', cape: '#e8c547' },
+  // nextDev — red hoodies and jackets
+  'iron-man': { skin: SKIN.mid, hair: HAIR.black, hairStyle: 'short', top: '#a9342b', bottom: '#2e2f38', accent: '#f0c674' },
+  hulk: { skin: SKIN.tan, hair: HAIR.brown, hairStyle: 'spiky', top: '#c2483a', bottom: '#3a3f4b', accent: '#e8e2d4', scale: 1.15 },
+  'spider-man': { skin: SKIN.light, hair: HAIR.chestnut, hairStyle: 'short', top: '#d0574a', bottom: '#40485a', accent: '#f4f1ea', scale: 0.92 },
+  'black-panther': { skin: SKIN.dark, hair: HAIR.black, hairStyle: 'short', top: '#8f2d27', bottom: '#2a2a33', accent: '#c9c2e8' },
+  vision: { skin: SKIN.fair, hair: HAIR.grey, hairStyle: 'short', top: '#b85a3c', bottom: '#34363f', accent: '#e8e0c8', visor: '#dfe8ff' },
 
-  // nextEditor
-  'doctor-strange': { skin: SKIN.light, hair: '#2a1f1a', hairStyle: 'short', top: '#1e3a6e', bottom: '#20283a', accent: '#d9a441', cape: '#b3261e' },
-  'scarlet-witch': { skin: SKIN.light, hair: '#a3262a', hairStyle: 'long', top: '#7c1d2a', bottom: '#4a1219', accent: '#e05a6b' },
-  quicksilver: { skin: SKIN.light, hair: '#e6e8ee', hairStyle: 'spiky', top: '#3f6fd0', bottom: '#2a3550', accent: '#cfd8ff' },
-  hawkeye: { skin: SKIN.mid, hair: '#7a5634', hairStyle: 'short', top: '#4b2a6e', bottom: '#2b2433', accent: '#8f6bc4' },
-  falcon: { skin: SKIN.deep, hair: '#161616', hairStyle: 'short', top: '#4a5560', bottom: '#2c333b', accent: '#c94a3a', visor: '#ffb3a3' },
+  // nextEditor — violet
+  'doctor-strange': { skin: SKIN.light, hair: HAIR.grey, hairStyle: 'short', top: '#5b3c8f', bottom: '#2c2840', accent: '#d9b8ff', cape: '#3f2a66' },
+  'scarlet-witch': { skin: SKIN.fair, hair: HAIR.red, hairStyle: 'long', top: '#7a4aa8', bottom: '#352a48', accent: '#f0c8e8' },
+  quicksilver: { skin: SKIN.light, hair: HAIR.white, hairStyle: 'spiky', top: '#6a52b8', bottom: '#2f2d45', accent: '#d8d0ff' },
+  hawkeye: { skin: SKIN.mid, hair: HAIR.brown, hairStyle: 'short', top: '#4f3a7a', bottom: '#2b2838', accent: '#c4b0ec', visor: '#c6d2e8' },
+  falcon: { skin: SKIN.deep, hair: HAIR.black, hairStyle: 'short', top: '#8a63c9', bottom: '#2e2b3d', accent: '#ece4ff' },
 
-  // nextDesign
-  wasp: { skin: SKIN.light, hair: '#1c1c1c', hairStyle: 'bun', top: '#d4a017', bottom: '#2b2b2b', accent: '#f2d15c' },
-  'ant-man': { skin: SKIN.light, hair: '#5a3a22', hairStyle: 'helmet', top: '#9e2a22', bottom: '#2c2c2c', accent: '#c9c9c9', visor: '#ffdd8a', scale: 0.88 },
-  loki: { skin: SKIN.light, hair: '#121212', hairStyle: 'long', top: '#1f5a3a', bottom: '#1a2a20', accent: '#d4af37', cape: '#164a2f' },
-  mantis: { skin: '#f3e3c6', hair: '#141414', hairStyle: 'long', top: '#3f7a4a', bottom: '#2a5232', accent: '#b4f0a8' },
-  nebula: { skin: '#4f78b8', hair: '#3a5c91', hairStyle: 'bald', top: '#2a2f3a', bottom: '#1f232b', accent: '#6c8cc8' },
+  // nextDesign (DC names) — teal
+  'wonder-woman': { skin: SKIN.light, hair: HAIR.black, hairStyle: 'bun', top: '#1f8a7a', bottom: '#253836', accent: '#bff0e6' },
+  cyborg: { skin: SKIN.fair, hair: HAIR.chestnut, hairStyle: 'short', top: '#2a9d8f', bottom: '#2a3b3a', accent: '#e0f4f0', scale: 0.9 },
+  zatanna: { skin: SKIN.light, hair: HAIR.black, hairStyle: 'long', top: '#176b5f', bottom: '#1f2d2b', accent: '#9fe0d2', cape: '#0f4a42' },
+  batgirl: { skin: SKIN.fair, hair: HAIR.black, hairStyle: 'long', top: '#35b0a0', bottom: '#2b3d3b', accent: '#e6fff9' },
+  batman: { skin: SKIN.tan, hair: HAIR.navy, hairStyle: 'mohawk', top: '#22786c', bottom: '#223230', accent: '#a8e6da' },
 
-  // NextMarketer
-  thor: { skin: SKIN.light, hair: '#e2b45a', hairStyle: 'long', top: '#3a4352', bottom: '#2a303b', accent: '#c8ccd4', cape: '#a3221b' },
-  'black-widow': { skin: SKIN.light, hair: '#b5452a', hairStyle: 'long', top: '#1b1b20', bottom: '#141418', accent: '#c4302b' },
-  'star-lord': { skin: SKIN.light, hair: '#8a5a32', hairStyle: 'short', top: '#7a2e22', bottom: '#2b2b33', accent: '#c9a26b' },
-  groot: { skin: '#8b5e3c', hair: '#4f7a2e', hairStyle: 'leafy', top: '#7a5233', bottom: '#5e3f27', accent: '#4f7a2e', scale: 1.12 },
-  rocket: { skin: '#9a7b5f', hair: '#6b5240', hairStyle: 'mohawk', top: '#c4602c', bottom: '#3c3a36', accent: '#e0e0e0', scale: 0.78 },
-  gamora: { skin: '#4f9a5a', hair: '#2a1a2a', hairStyle: 'long', top: '#2a2a33', bottom: '#1d1d24', accent: '#b84a8a' },
+  // NextMarketer (DC names) — amber
+  superman: { skin: SKIN.fair, hair: HAIR.blond, hairStyle: 'long', top: '#c47f1c', bottom: '#3a332a', accent: '#f6dfa8', scale: 1.08 },
+  'lois-lane': { skin: SKIN.light, hair: HAIR.red, hairStyle: 'long', top: '#a8661a', bottom: '#30291f', accent: '#ffe2b0' },
+  flash: { skin: SKIN.mid, hair: HAIR.brown, hairStyle: 'short', top: '#d18a2b', bottom: '#38322b', accent: '#fff0cc', visor: '#2a2420' },
+  aquaman: { skin: SKIN.tan, hair: '#4f7a2e', hairStyle: 'leafy', top: '#b77722', bottom: '#4a3a28', accent: '#e8d8a8', scale: 1.08 },
+  'green-lantern': { skin: SKIN.mid, hair: HAIR.chestnut, hairStyle: 'mohawk', top: '#e09a3a', bottom: '#3c3530', accent: '#fff3d6', scale: 0.85 },
+  'martian-manhunter': { skin: SKIN.deep, hair: HAIR.black, hairStyle: 'bun', top: '#9a5a14', bottom: '#2c241c', accent: '#ffd9a0' },
 };
 
-const FALLBACK: Look = { skin: SKIN.mid, hair: '#3a2a20', hairStyle: 'short', top: '#475569', bottom: '#334155', accent: '#94a3b8' };
+const FALLBACK: Look = { skin: SKIN.mid, hair: HAIR.brown, hairStyle: 'short', top: '#475569', bottom: '#334155', accent: '#94a3b8' };
 
 export const lookOf = (id: string): Look => LOOKS[id] ?? FALLBACK;
