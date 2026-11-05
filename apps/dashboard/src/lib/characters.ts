@@ -40,19 +40,19 @@ export const LOOKS: Record<string, Look> = {
   'black-panther': { skin: SKIN.dark, hair: HAIR.black, hairStyle: 'short', top: '#8f2d27', bottom: '#2a2a33', accent: '#c9c2e8' },
   vision: { skin: SKIN.fair, hair: HAIR.grey, hairStyle: 'short', top: '#b85a3c', bottom: '#34363f', accent: '#e8e0c8', visor: '#dfe8ff' },
 
-  // nextEditor — violet
-  'doctor-strange': { skin: SKIN.light, hair: HAIR.grey, hairStyle: 'short', top: '#5b3c8f', bottom: '#2c2840', accent: '#d9b8ff', cape: '#3f2a66' },
-  'scarlet-witch': { skin: SKIN.fair, hair: HAIR.red, hairStyle: 'long', top: '#7a4aa8', bottom: '#352a48', accent: '#f0c8e8' },
-  quicksilver: { skin: SKIN.light, hair: HAIR.white, hairStyle: 'spiky', top: '#6a52b8', bottom: '#2f2d45', accent: '#d8d0ff' },
-  hawkeye: { skin: SKIN.mid, hair: HAIR.brown, hairStyle: 'short', top: '#4f3a7a', bottom: '#2b2838', accent: '#c4b0ec', visor: '#c6d2e8' },
-  falcon: { skin: SKIN.deep, hair: HAIR.black, hairStyle: 'short', top: '#8a63c9', bottom: '#2e2b3d', accent: '#ece4ff' },
+  // nextEditor (X-Men names) — violet
+  cyclops: { skin: SKIN.fair, hair: HAIR.brown, hairStyle: 'short', top: '#5b3c8f', bottom: '#2c2840', accent: '#d9b8ff' },
+  storm: { skin: SKIN.dark, hair: HAIR.white, hairStyle: 'long', top: '#7a4aa8', bottom: '#352a48', accent: '#f0c8e8' },
+  'jean-grey': { skin: SKIN.light, hair: HAIR.red, hairStyle: 'long', top: '#6a52b8', bottom: '#2f2d45', accent: '#d8d0ff' },
+  wolverine: { skin: SKIN.mid, hair: HAIR.black, hairStyle: 'spiky', top: '#4f3a7a', bottom: '#2b2838', accent: '#c4b0ec', scale: 0.95 },
+  beast: { skin: SKIN.tan, hair: HAIR.navy, hairStyle: 'short', top: '#8a63c9', bottom: '#2e2b3d', accent: '#ece4ff', scale: 1.12, visor: '#e8eef8' },
 
-  // nextDesign (DC names) — teal
-  'wonder-woman': { skin: SKIN.light, hair: HAIR.black, hairStyle: 'bun', top: '#1f8a7a', bottom: '#253836', accent: '#bff0e6' },
-  cyborg: { skin: SKIN.fair, hair: HAIR.chestnut, hairStyle: 'short', top: '#2a9d8f', bottom: '#2a3b3a', accent: '#e0f4f0', scale: 0.9 },
-  zatanna: { skin: SKIN.light, hair: HAIR.black, hairStyle: 'long', top: '#176b5f', bottom: '#1f2d2b', accent: '#9fe0d2', cape: '#0f4a42' },
-  batgirl: { skin: SKIN.fair, hair: HAIR.black, hairStyle: 'long', top: '#35b0a0', bottom: '#2b3d3b', accent: '#e6fff9' },
-  batman: { skin: SKIN.tan, hair: HAIR.navy, hairStyle: 'mohawk', top: '#22786c', bottom: '#223230', accent: '#a8e6da' },
+  // nextDesign (Fantastic Four names) — teal
+  'mister-fantastic': { skin: SKIN.light, hair: HAIR.grey, hairStyle: 'short', top: '#1f8a7a', bottom: '#253836', accent: '#bff0e6', scale: 1.05 },
+  'invisible-woman': { skin: SKIN.light, hair: HAIR.blond, hairStyle: 'bun', top: '#2a9d8f', bottom: '#2a3b3a', accent: '#e0f4f0' },
+  'human-torch': { skin: SKIN.fair, hair: HAIR.blond, hairStyle: 'spiky', top: '#176b5f', bottom: '#1f2d2b', accent: '#ffcf8a' },
+  'silver-surfer': { skin: SKIN.light, hair: HAIR.black, hairStyle: 'bald', top: '#35b0a0', bottom: '#2b3d3b', accent: '#e6fff9' },
+  'the-thing': { skin: SKIN.tan, hair: HAIR.brown, hairStyle: 'bald', top: '#22786c', bottom: '#223230', accent: '#a8e6da', scale: 1.18 },
 
   // NextMarketer (DC names) — amber
   superman: { skin: SKIN.fair, hair: HAIR.blond, hairStyle: 'long', top: '#c47f1c', bottom: '#3a332a', accent: '#f6dfa8', scale: 1.08 },

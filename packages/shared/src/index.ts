@@ -161,11 +161,11 @@ export const TEAMS: Team[] = [
     focus: 'Video editing',
     color: '#a855f7',
     members: [
-      { id: 'doctor-strange', name: 'Doctor Strange', title: 'Team Leader', role: 'leader' },
-      { id: 'scarlet-witch', name: 'Scarlet Witch', title: 'Editor', role: 'worker' },
-      { id: 'quicksilver', name: 'Quicksilver', title: 'Editor', role: 'worker' },
-      { id: 'hawkeye', name: 'Hawkeye', title: 'Reference Matcher', role: 'reference' },
-      { id: 'falcon', name: 'Falcon', title: 'Team QA', role: 'qa' },
+      { id: 'cyclops', name: 'Cyclops', title: 'Team Leader', role: 'leader' },
+      { id: 'storm', name: 'Storm', title: 'Editor', role: 'worker' },
+      { id: 'jean-grey', name: 'Jean Grey', title: 'Editor', role: 'worker' },
+      { id: 'wolverine', name: 'Wolverine', title: 'Reference Matcher', role: 'reference' },
+      { id: 'beast', name: 'Beast', title: 'Team QA', role: 'qa' },
     ],
   },
   {
@@ -174,11 +174,11 @@ export const TEAMS: Team[] = [
     focus: 'Design',
     color: '#14b8a6',
     members: [
-      { id: 'wonder-woman', name: 'Wonder Woman', title: 'Team Leader', role: 'leader' },
-      { id: 'cyborg', name: 'Cyborg', title: 'UI/UX Designer', role: 'worker' },
-      { id: 'zatanna', name: 'Zatanna', title: 'Brand Designer', role: 'worker' },
-      { id: 'batgirl', name: 'Batgirl', title: 'Reference Matcher', role: 'reference' },
-      { id: 'batman', name: 'Batman', title: 'Team QA', role: 'qa' },
+      { id: 'mister-fantastic', name: 'Mister Fantastic', title: 'Team Leader', role: 'leader' },
+      { id: 'invisible-woman', name: 'Invisible Woman', title: 'UI/UX Designer', role: 'worker' },
+      { id: 'human-torch', name: 'Human Torch', title: 'Brand Designer', role: 'worker' },
+      { id: 'silver-surfer', name: 'Silver Surfer', title: 'Reference Matcher', role: 'reference' },
+      { id: 'the-thing', name: 'The Thing', title: 'Team QA', role: 'qa' },
     ],
   },
   {
