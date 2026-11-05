@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { MAP_H, MAP_W, type OfficeMember, type RoomId } from '@/lib/office';
+import { MAP_H, MAP_W, type OfficeMember, type Point, type RoomId } from '@/lib/office';
+import { distance, walkPath, WALK_SPEED } from '@/lib/office-walk';
 import { speechFor } from '@/lib/speech';
 import { OfficeBuilding } from './OfficeBuilding';
 import { CharacterFigure } from './CharacterFigure';
@@ -38,34 +39,22 @@ function statusIcon(member: OfficeMember, tick: number): string | null {
 
 function Character({ member, tick, selected, onSelect }: { member: OfficeMember; tick: number; selected: boolean; onSelect: () => void }) {
   const { activity } = member;
-  const [walking, setWalking] = useState(false);
-  const [facingLeft, setFacingLeft] = useState(false);
-  const lastPos = useRef(member.position);
+  const { x, y } = member.position;
+  const { ref, figureRef, active: walking } = useWalk(x, y);
 
-  const left = (member.position.x / MAP_W) * 100;
-  const top = (member.position.y / MAP_H) * 100;
   const pose = walking ? 'walk' : activity.pose;
   const speech = walking ? null : speechFor(member, tick);
   const icon = walking || speech ? null : statusIcon(member, tick);
 
   return (
     <button
+      ref={ref}
       type="button"
       onClick={onSelect}
       aria-label={`${member.name}, ${member.title}: ${activity.label}`}
       aria-pressed={selected}
-      // Walking is driven by the CSS transition itself, so the legs move exactly while the character does.
-      onTransitionRun={(e) => {
-        if (e.propertyName !== 'left' && e.propertyName !== 'top') return;
-        setFacingLeft(member.position.x < lastPos.current.x);
-        lastPos.current = member.position;
-        setWalking(true);
-      }}
-      onTransitionEnd={(e) => {
-        if (e.propertyName === 'left' || e.propertyName === 'top') setWalking(false);
-      }}
-      className="group absolute flex -translate-x-1/2 -translate-y-full flex-col items-center transition-[left,top] duration-[2000ms] ease-in-out focus-visible:outline-none"
-      style={{ left: `${left}%`, top: `${top}%`, zIndex: Math.round(member.position.y) }}
+      className="group absolute flex -translate-x-1/2 -translate-y-full flex-col items-center focus-visible:outline-none"
+      style={{ left: `${(x / MAP_W) * 100}%`, top: `${(y / MAP_H) * 100}%`, zIndex: Math.round(y) }}
     >
       {speech && (
         <span
@@ -95,8 +84,8 @@ function Character({ member, tick, selected, onSelect }: { member: OfficeMember;
       </span>
 
       <span
+        ref={figureRef}
         className={`relative ${selected ? 'drop-shadow-[0_0_6px_rgba(167,139,250,1)]' : 'group-hover:drop-shadow-[0_0_4px_rgba(255,255,255,0.7)]'}`}
-        style={{ transform: walking && facingLeft ? 'scaleX(-1)' : undefined }}
       >
         {/* Sized in container units so characters grow and shrink with the map. */}
         <CharacterFigure id={member.id} pose={pose} size={36} className="!h-[clamp(58px,7.4cqw,118px)] !w-[clamp(46px,5.9cqw,94px)]" />
@@ -107,6 +96,72 @@ function Character({ member, tick, selected, onSelect }: { member: OfficeMember;
       </span>
     </button>
   );
+}
+
+/**
+ * Walks the character to (x, y) along the corridors whenever its spot changes: out of its room's door,
+ * along the hallways and into the other room. One Web Animation per walk moves it at a steady pace and
+ * turns it to face the way it goes; `active` is true while it walks.
+ */
+function useWalk(x: number, y: number) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const figureRef = useRef<HTMLSpanElement>(null);
+  const at = useRef<Point>({ x, y });
+  const current = useRef<Animation[]>([]);
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    const figure = figureRef.current;
+    if (!el || !figure) return;
+    // Stopped mid-walk by a new destination: carry on from where the character is now.
+    const from = current.current.length > 0 ? shownAt(el) : at.current;
+    for (const a of current.current) a.cancel();
+    current.current = [];
+    at.current = { x, y };
+    if (from.x === x && from.y === y) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const points = [from, ...walkPath(from, { x, y })];
+    const lengths = points.slice(1).map((p, i) => distance(points[i]!, p));
+    const total = lengths.reduce((sum, l) => sum + l, 0);
+    if (total === 0) return;
+
+    let walked = 0;
+    const offsets = [0, ...lengths.map((l) => (walked += l) / total)];
+    const move = el.animate(
+      points.map((p, i) => ({ left: `${(p.x / MAP_W) * 100}%`, top: `${(p.y / MAP_H) * 100}%`, zIndex: Math.round(p.y), offset: offsets[i] })),
+      { duration: (total / WALK_SPEED) * 1000, easing: 'linear' },
+    );
+    // Face each stretch's direction, switching at its corner; straight up or down keeps the last facing.
+    let facing = 1;
+    const turns = lengths.map((_, i) => {
+      const dx = points[i + 1]!.x - points[i]!.x;
+      if (dx !== 0) facing = dx < 0 ? -1 : 1;
+      return { transform: `scaleX(${facing})`, offset: offsets[i], easing: 'step-end' };
+    });
+    const turn = figure.animate([...turns, { transform: `scaleX(${facing})`, offset: 1 }], { duration: (total / WALK_SPEED) * 1000 });
+
+    current.current = [move, turn];
+    move.ready.then(() => setActive(true)).catch(() => {});
+    move.finished
+      .then(() => {
+        for (const a of current.current) a.cancel();
+        current.current = [];
+        setActive(false);
+      })
+      // Cancelled by a newer walk, which takes over.
+      .catch(() => {});
+  }, [x, y]);
+
+  return { ref, figureRef, active };
+}
+
+/** Where the character is drawn right now, in map units (mid-walk too). */
+function shownAt(el: HTMLElement): Point {
+  const style = getComputedStyle(el);
+  const parent = el.parentElement!;
+  return { x: (parseFloat(style.left) / parent.clientWidth) * MAP_W, y: (parseFloat(style.top) / parent.clientHeight) * MAP_H };
 }
 
 /** A counter that goes up every `ms`, so speech bubbles and icons change now and then. */
