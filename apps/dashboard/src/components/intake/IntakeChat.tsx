@@ -4,8 +4,7 @@ import { INTAKE_AGENT_NAME, type IntakeView } from '@smart-team/shared';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useIntake } from '@/hooks/useIntake';
 import { api } from '@/lib/api';
-import { lookOf } from '@/lib/characters';
-import { PixelSprite } from '../office/PixelSprite';
+import { CharacterFigure } from '../office/CharacterFigure';
 import { AttachPanel } from './AttachPanel';
 import { BriefChecklist } from './BriefChecklist';
 
@@ -66,7 +65,7 @@ export function IntakeChat({ taskId }: { taskId: string }) {
       <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-surface" aria-label="Brief chat">
         <header className="flex items-center gap-3 border-b border-line px-4 py-2.5">
           <span className="grid size-9 place-items-center overflow-hidden rounded-full bg-[#0c0e13]">
-            <PixelSprite look={lookOf('friday')} bust size={34} />
+            <CharacterFigure id="friday" bust size={34} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">{INTAKE_AGENT_NAME} · Intake agent</p>

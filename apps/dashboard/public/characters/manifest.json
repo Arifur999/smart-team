@@ -1,0 +1,37 @@
+{
+  "poses": [
+    "stand",
+    "walk-a",
+    "walk-b",
+    "type",
+    "sleep"
+  ],
+  "ids": [
+    "aquaman",
+    "beast",
+    "black-panther",
+    "captain-marvel",
+    "cyclops",
+    "flash",
+    "friday",
+    "green-lantern",
+    "hulk",
+    "human-torch",
+    "invisible-woman",
+    "iron-man",
+    "jarvis",
+    "jean-grey",
+    "lois-lane",
+    "maria-hill",
+    "martian-manhunter",
+    "mister-fantastic",
+    "nick-fury",
+    "silver-surfer",
+    "spider-man",
+    "storm",
+    "superman",
+    "the-thing",
+    "vision",
+    "wolverine"
+  ]
+}

@@ -43,7 +43,7 @@ export const ROOMS: Room[] = [
   { id: 'approval', label: 'Approval Room', x: 688, y: 16, w: 296, h: 176, slots: grid(776, 176, 3, 1, 62, 0) },
   { id: 'workspace', label: 'Workspace', x: 16, y: 208, w: 470, h: 220, slots: DESKS.map((d) => ({ x: d.x + DESK_W / 2, y: d.y + 6 })) },
   { id: 'command', label: 'Command Center', x: 502, y: 208, w: 482, h: 220, slots: CONSOLES.map((c) => ({ x: c.x + CONSOLE_W / 2, y: c.y + 4 })) },
-  { id: 'lounge', label: 'Lounge', x: 16, y: 444, w: 250, h: 180, slots: grid(58, 566, 3, 2, 76, 52) },
+  { id: 'lounge', label: 'Lounge', x: 16, y: 444, w: 250, h: 180, slots: grid(84, 552, 2, 2, 116, 56) },
   { id: 'pantry', label: 'Pantry', x: 282, y: 444, w: 190, h: 180, slots: grid(320, 610, 3, 1, 56, 0) },
   { id: 'lab', label: 'R&D Lab', x: 488, y: 444, w: 200, h: 180, slots: grid(528, 610, 3, 1, 60, 0) },
   { id: 'server', label: 'Server Room', x: 704, y: 444, w: 140, h: 180, slots: grid(740, 610, 2, 1, 64, 0) },

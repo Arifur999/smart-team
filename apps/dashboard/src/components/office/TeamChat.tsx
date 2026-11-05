@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ChatLine } from '@/hooks/useTeamChat';
-import { lookOf } from '@/lib/characters';
-import { PixelSprite } from './PixelSprite';
+import { CharacterFigure } from './CharacterFigure';
 
 export function TeamChat({ lines }: { lines: ChatLine[] }) {
   const [open, setOpen] = useState(true);
@@ -27,7 +26,7 @@ export function TeamChat({ lines }: { lines: ChatLine[] }) {
           {lines.map((line) => (
             <div key={line.id} className="flex items-start gap-2 text-sm">
               <span className="mt-0.5 grid size-6 shrink-0 place-items-center overflow-hidden rounded-full bg-[#0c0e13]">
-                <PixelSprite look={lookOf(line.memberId)} bust size={22} />
+                <CharacterFigure id={line.memberId} bust size={22} />
               </span>
               <p className="min-w-0 flex-1">
                 <span className="font-medium">{line.name}</span> <span className="text-muted">{line.text}</span>

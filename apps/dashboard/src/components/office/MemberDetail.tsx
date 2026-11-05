@@ -4,10 +4,9 @@ import { totalTokens, type AgentStats } from '@smart-team/shared';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useTask } from '@/hooks/useTask';
-import { lookOf } from '@/lib/characters';
 import { formatDuration, formatTokens, ROOMS, type OfficeMember } from '@/lib/office';
 import { TaskStatusBadge } from '../TaskStatusBadge';
-import { PixelSprite } from './PixelSprite';
+import { CharacterFigure } from './CharacterFigure';
 
 const KIND_STYLE: Record<string, string> = {
   prompt: 'text-term-accent',
@@ -49,8 +48,9 @@ export function MemberDetail({ member, stats, skills = [], onClose }: Props) {
   return (
     <aside className="flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface" aria-label={`${member.name} details`}>
       <div className="relative flex items-end gap-4 px-4 pb-3 pt-4" style={{ background: `linear-gradient(135deg, ${member.color}55, transparent 70%)` }}>
-        <div className="grid size-28 shrink-0 place-items-center rounded-2xl bg-[#0c0e13] shadow-inner ring-1 ring-white/10">
-          <PixelSprite look={lookOf(member.id)} pose={member.activity.pose} size={64} />
+        <div className="grid size-28 shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#0c0e13] shadow-inner ring-1 ring-white/10">
+          {/* The renders have empty space around the figure; size up and let the box trim it. */}
+          <CharacterFigure id={member.id} pose={member.activity.pose} size={84} className="!h-[136px] !w-[109px]" />
         </div>
         <div className="min-w-0 flex-1 pb-1">
           <h2 className="truncate text-lg font-semibold">{member.name}</h2>

@@ -76,21 +76,27 @@ function Patterns() {
   return (
     <defs>
       <pattern id="corridor" width="28" height="28" patternUnits="userSpaceOnUse">
-        <rect width="28" height="28" fill="#32353d" />
-        <rect width="27" height="27" fill="#3a3e47" />
-        <rect x="3" y="3" width="8" height="1" fill="#41454f" />
+        <rect width="28" height="28" fill="#2a2d34" />
+        <rect width="27" height="27" fill="#31343c" />
+        <rect x="3" y="3" width="8" height="1" fill="#383b44" />
       </pattern>
       <pattern id="room-tile" width="22" height="22" patternUnits="userSpaceOnUse">
-        <rect width="22" height="22" fill="#24272f" />
-        <rect width="21" height="21" fill="#2c2f38" />
+        <rect width="22" height="22" fill="#1d2027" />
+        <rect width="21" height="21" fill="#252830" />
+        <rect x="2" y="2" width="6" height="1" fill="#2c2f38" />
       </pattern>
       <pattern id="room-tile-dark" width="22" height="22" patternUnits="userSpaceOnUse">
-        <rect width="22" height="22" fill="#1d2029" />
-        <rect width="21" height="21" fill="#252935" />
+        <rect width="22" height="22" fill="#171a22" />
+        <rect width="21" height="21" fill="#1e222c" />
       </pattern>
       <pattern id="room-tile-light" width="22" height="22" patternUnits="userSpaceOnUse">
-        <rect width="22" height="22" fill="#30343d" />
-        <rect width="21" height="21" fill="#393e48" />
+        <rect width="22" height="22" fill="#272a32" />
+        <rect width="21" height="21" fill="#2f333c" />
+      </pattern>
+      <pattern id="rug" width="8" height="8" patternUnits="userSpaceOnUse">
+        <rect width="8" height="8" fill="#3a2f4a" />
+        <rect width="4" height="4" fill="#43375a" />
+        <rect x="4" y="4" width="4" height="4" fill="#43375a" />
       </pattern>
       <pattern id="carpet" width="6" height="6" patternUnits="userSpaceOnUse">
         <rect width="6" height="6" fill="#262a33" />
@@ -117,6 +123,8 @@ function Patterns() {
 
 const WALL = 7;
 const BACK = 22;
+/** Depth of the glass front walls. */
+const GLASS = 11;
 
 function RoomShape({ room, count }: { room: Room; count: number }) {
   const { x, y, w, h } = room;
@@ -151,12 +159,13 @@ function RoomShape({ room, count }: { room: Room; count: number }) {
       ))}
 
       {/* Glass front wall with a double door. */}
-      <GlassWall x={x} y={y + h - 7} w={doorX - x} />
-      <GlassWall x={doorX + doorW} y={y + h - 7} w={x + w - doorX - doorW} />
-      <rect x={doorX} y={y + h - 7} width={doorW / 2 - 1} height="7" fill={C.glass} opacity="0.2" />
-      <rect x={doorX + doorW / 2 + 1} y={y + h - 7} width={doorW / 2 - 1} height="7" fill={C.glass} opacity="0.2" />
-      <rect x={doorX + doorW / 2 - 4} y={y + h - 5} width="2" height="3" fill="#c9d3e0" />
-      <rect x={doorX + doorW / 2 + 2} y={y + h - 5} width="2" height="3" fill="#c9d3e0" />
+      <GlassWall x={x} y={y + h - GLASS} w={doorX - x} />
+      <GlassWall x={doorX + doorW} y={y + h - GLASS} w={x + w - doorX - doorW} />
+      <rect x={doorX} y={y + h - GLASS} width={doorW / 2 - 1} height={GLASS} fill={C.glass} opacity="0.18" />
+      <rect x={doorX + doorW / 2 + 1} y={y + h - GLASS} width={doorW / 2 - 1} height={GLASS} fill={C.glass} opacity="0.18" />
+      <rect x={doorX} y={y + h - GLASS} width={doorW} height="1.5" fill={C.glassFrame} />
+      <rect x={doorX + doorW / 2 - 4} y={y + h - 7} width="2" height="4" fill="#c9d3e0" />
+      <rect x={doorX + doorW / 2 + 2} y={y + h - 7} width="2" height="4" fill="#c9d3e0" />
 
       {occupied && (
         <>
@@ -182,13 +191,17 @@ function GlassWall({ x, y, w }: { x: number; y: number; w: number }) {
   if (w <= 0) return null;
   return (
     <g>
-      <rect x={x} y={y} width={w} height="7" fill={C.glass} opacity="0.32" />
-      <rect x={x} y={y} width={w} height="1.5" fill={C.glassFrame} />
-      <rect x={x} y={y + 5.5} width={w} height="1.5" fill={C.glassFrame} />
+      <rect x={x} y={y} width={w} height={GLASS} fill="#5f8fa8" opacity="0.5" />
+      <rect x={x} y={y + 2} width={w} height={GLASS - 5} fill={C.glass} opacity="0.35" />
+      <rect x={x} y={y} width={w} height="2" fill={C.glassFrame} />
+      <rect x={x} y={y + GLASS - 3} width={w} height="3" fill={C.glassFrame} />
       {Array.from({ length: Math.max(0, Math.floor(w / 42)) }, (_, i) => (
-        <rect key={i} x={x + 40 + i * 42} y={y} width="2" height="7" fill={C.glassFrame} />
+        <rect key={i} x={x + 40 + i * 42} y={y} width="2" height={GLASS} fill={C.glassFrame} />
       ))}
-      <rect x={x + 4} y={y + 2} width={Math.min(14, w - 8)} height="1" fill="#ffffff" opacity="0.35" />
+      {/* A glint on every pane. */}
+      {Array.from({ length: Math.max(1, Math.floor(w / 42)) }, (_, i) => (
+        <rect key={`g${i}`} x={x + 5 + i * 42} y={y + 3} width={Math.min(12, w - 8)} height="1" fill="#ffffff" opacity="0.4" />
+      ))}
     </g>
   );
 }
@@ -251,6 +264,7 @@ function Desk({ x, y, w = DESK_W, variant = 0 }: { x: number; y: number; w?: num
       <rect x={x + w / 2 - 16} y={y + 15} width="32" height="1" fill="#565b66" />
       <rect x={x + w / 2 + 22} y={y + 14} width="4" height="5" fill="#2a2d34" />
       {variant % 3 === 0 ? <rect x={x + 8} y={y + 12} width="6" height="6" fill="#ece5d8" /> : <Plant x={x + 10} y={y + 2} small />}
+      <Mug x={x + w - 12} y={y + 8} />
     </g>
   );
 }
@@ -310,19 +324,138 @@ function WallScreen({ x, y, w, h, chart = 0 }: { x: number; y: number; w: number
   );
 }
 
+/** Land blocks for the wall map, in a 40 x 16 grid: [col, row, width, height]. A loose world, not a real atlas. */
+const LAND = [
+  [3, 2, 7, 3], [5, 5, 4, 3], [8, 8, 3, 5], [16, 2, 5, 3], [17, 5, 4, 5], [22, 2, 10, 4], [25, 6, 5, 3], [32, 9, 4, 3], [12, 1, 3, 1],
+];
+
+/** A big operations dashboard on the back wall: two chart panels, a world map with live dots, a pie and bars. */
+function DashboardWall({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
+  const side = Math.round(w * 0.2);
+  const mapX = x + side + 6;
+  const mapW = w - side * 2 - 12;
+  const cell = mapW / 40;
+  const rowH = (h - 8) / 16;
+  return (
+    <g>
+      <rect x={x - 2} y={y - 2} width={w + 4} height={h + 4} fill="#05070b" />
+      <rect x={x} y={y} width={w} height={h} fill="#0a1222" />
+      {/* Left: line chart and bars. */}
+      <WallScreen x={x + 2} y={y + 2} w={side} h={h / 2 - 3} chart={2} />
+      <rect className="screen" x={x + 2} y={y + h / 2} width={side} height={h / 2 - 2} fill="#0f1d36" />
+      {[5, 9, 6, 11, 8, 12, 7].map((v, i) => (
+        <rect key={i} className="screen" x={x + 6 + i * ((side - 8) / 7)} y={y + h - 4 - v} width={(side - 8) / 7 - 2} height={v} fill={i % 2 ? C.glow : '#a78bfa'} />
+      ))}
+      {/* Centre: the map. */}
+      <rect className="screen" x={mapX} y={y + 2} width={mapW} height={h - 4} fill="#0c1a33" />
+      {LAND.map(([c, r, cw, rh], i) => (
+        <rect key={i} x={mapX + c * cell} y={y + 4 + r * rowH} width={cw * cell} height={rh * rowH} fill="#2a4f86" opacity="0.85" />
+      ))}
+      {[
+        [7, 4],
+        [19, 7],
+        [27, 4],
+        [34, 10],
+        [10, 10],
+      ].map(([c, r], i) => (
+        <rect key={i} className="led" x={mapX + c * cell} y={y + 4 + r * rowH} width="2.5" height="2.5" fill={i % 2 ? '#f472b6' : C.glowGreen} style={{ animationDelay: `${i * 0.4}s` }} />
+      ))}
+      {/* Right: a pie and a second chart. */}
+      <rect className="screen" x={x + w - side - 2} y={y + 2} width={side} height={h / 2 - 3} fill="#0f1d36" />
+      <circle cx={x + w - side / 2 - 2} cy={y + h / 4} r={Math.min(side, h / 2) / 2 - 4} fill="#60a5fa" shapeRendering="auto" />
+      <path
+        d={describePie(x + w - side / 2 - 2, y + h / 4, Math.min(side, h / 2) / 2 - 4, 0.62)}
+        fill="#f97316"
+        shapeRendering="auto"
+      />
+      <WallScreen x={x + w - side - 2} y={y + h / 2} w={side} h={h / 2 - 2} chart={1} />
+    </g>
+  );
+}
+
+/** SVG path for a pie slice from 12 o'clock covering `fraction` of the circle. */
+function describePie(cx: number, cy: number, r: number, fraction: number): string {
+  const a = fraction * Math.PI * 2;
+  const ex = cx + r * Math.sin(a);
+  const ey = cy - r * Math.cos(a);
+  return `M ${cx} ${cy} L ${cx} ${cy - r} A ${r} ${r} 0 ${fraction > 0.5 ? 1 : 0} 1 ${ex} ${ey} Z`;
+}
+
+function Projector({ x, y, w }: { x: number; y: number; w: number }) {
+  return (
+    <g>
+      <rect x={x - 3} y={y} width={w + 6} height="3" fill="#2a2e38" />
+      <rect x={x} y={y + 3} width={w} height="17" fill="#eef1f6" />
+      <rect x={x} y={y + 18} width={w} height="2" fill="#c3c9d4" />
+      <rect x={x + w / 2 - 1} y={y + 20} width="2" height="22" fill="#2a2e38" />
+      <rect x={x + w / 2 - 7} y={y + 42} width="14" height="7" fill="#3a3f4a" />
+      <rect x={x + w / 2 - 2} y={y + 44} width="4" height="3" fill="#9cc7ff" />
+    </g>
+  );
+}
+
+function Sofa({ x, y, w, color = '#3b3f58' }: { x: number; y: number; w: number; color?: string }) {
+  return (
+    <g>
+      <rect x={x + 2} y={y + 26} width={w} height="3" fill="#000" opacity="0.35" />
+      <rect x={x} y={y} width={w} height="10" fill="#26283a" />
+      <rect x={x} y={y + 8} width={w} height="18" fill={color} />
+      <rect x={x} y={y + 6} width="7" height="20" fill="#2c2e42" />
+      <rect x={x + w - 7} y={y + 6} width="7" height="20" fill="#2c2e42" />
+      {Array.from({ length: Math.max(1, Math.floor((w - 14) / 26)) }, (_, i) => (
+        <rect key={i} x={x + 9 + i * 26} y={y + 10} width="23" height="1" fill="#fff" opacity="0.12" />
+      ))}
+    </g>
+  );
+}
+
+function Armchair({ x, y, color = '#3b3f58' }: { x: number; y: number; color?: string }) {
+  return (
+    <g>
+      <rect x={x + 2} y={y + 22} width="24" height="3" fill="#000" opacity="0.35" />
+      <rect x={x} y={y} width="24" height="8" fill="#26283a" />
+      <rect x={x} y={y + 7} width="24" height="15" fill={color} />
+      <rect x={x} y={y + 5} width="5" height="17" fill="#2c2e42" />
+      <rect x={x + 19} y={y + 5} width="5" height="17" fill="#2c2e42" />
+    </g>
+  );
+}
+
+function FloorLamp({ x, y }: { x: number; y: number }) {
+  return (
+    <g>
+      <circle cx={x} cy={y + 6} r="26" fill="url(#glow-warm)" shapeRendering="auto" />
+      <rect x={x - 1} y={y + 6} width="2" height="22" fill="#4a505c" />
+      <rect x={x - 5} y={y + 27} width="10" height="3" fill="#2a2e38" />
+      <rect x={x - 6} y={y} width="12" height="7" fill="#e8d2a0" />
+      <rect className="lamp" x={x - 4} y={y + 6} width="8" height="2" fill={C.lamp} />
+    </g>
+  );
+}
+
+function Mug({ x, y }: { x: number; y: number }) {
+  return (
+    <g>
+      <rect x={x} y={y} width="5" height="5" fill="#ece5d8" />
+      <rect x={x + 5} y={y + 1} width="2" height="3" fill="#ece5d8" />
+      <rect x={x + 1} y={y} width="3" height="1" fill="#5b3a26" />
+    </g>
+  );
+}
+
 function Furniture({ room }: { room: Room }) {
   const { x, y, w, h } = room;
   switch (room.id) {
     case 'briefing':
       return (
         <g>
-          <rect x={x + 80} y={y + 2} width={120} height={18} fill={C.paper} />
-          <rect x={x + 136} y={y + 50} width="10" height="7" fill="#2a2e38" />
-          {Array.from({ length: 12 }, (_, i) => (
-            <OfficeChair key={i} x={x + 50 + (i % 6) * 36} y={y + 82 + Math.floor(i / 6) * 30} />
+          <Projector x={x + 80} y={y + 1} w={120} />
+          {Array.from({ length: 18 }, (_, i) => (
+            <OfficeChair key={i} x={x + 50 + (i % 6) * 36} y={y + 76 + Math.floor(i / 6) * 26} />
           ))}
           <Cabinet x={x + w - 34} y={y + 52} />
           <Plant x={x + 18} y={y + 60} />
+          <Plant x={x + 18} y={y + h - 30} />
         </g>
       );
     case 'meeting':
@@ -349,10 +482,14 @@ function Furniture({ room }: { room: Room }) {
         <g>
           <Shelf x={x + 14} y={y + 50} />
           <Cabinet x={x + 52} y={y + 58} />
+          <rect x={x + 110} y={y + 60} width={140} height={90} fill="url(#rug)" opacity="0.6" />
           <Box x={x + 120} y={y + 70} w={120} d={26} h={10} top={C.deskTop} front={C.deskFront} />
           <Monitor x={x + 166} y={y + 58} />
           <rect x={x + 130} y={y + 78} width="16" height="11" fill={C.paper} />
+          <circle cx={x + 222} cy={y + 76} r="12" fill="url(#glow-warm)" shapeRendering="auto" />
           <rect x={x + 218} y={y + 76} width="6" height="8" fill="#e8c46a" />
+          <Mug x={x + 150} y={y + 82} />
+          <Cabinet x={x + w - 34} y={y + 100} w={22} h={30} />
           <OfficeChair x={x + 180} y={y + 66} />
           <OfficeChair x={x + 160} y={y + 120} />
           <OfficeChair x={x + 200} y={y + 120} />
@@ -376,10 +513,10 @@ function Furniture({ room }: { room: Room }) {
     case 'command':
       return (
         <g>
-          <WallScreen x={x + 30} y={y + 2} w={110} h={19} chart={0} />
-          <WallScreen x={x + w / 2 - 70} y={y + 2} w={140} h={19} chart={1} />
-          <WallScreen x={x + w - 140} y={y + 2} w={110} h={19} chart={2} />
-          <circle cx={x + w / 2} cy={y + 120} r="110" fill="url(#glow-blue)" shapeRendering="auto" />
+          <circle cx={x + w / 2} cy={y + 120} r="130" fill="url(#glow-blue)" shapeRendering="auto" />
+          {/* Room for the name chip on the left, then the dashboard across the rest of the back wall. */}
+          <DashboardWall x={x + 150} y={y + 4} w={w - 172} h={50} />
+          <Cabinet x={x + 40} y={y + 48} w={26} h={38} />
           {CONSOLES.map((c, i) => (
             <g key={i}>
               <OfficeChair x={c.x + CONSOLE_W / 2} y={c.y - 4} />
@@ -397,14 +534,17 @@ function Furniture({ room }: { room: Room }) {
     case 'lounge':
       return (
         <g>
-          <WallScreen x={x + w / 2 - 40} y={y + 2} w={80} h={19} chart={1} />
-          <Box x={x + 20} y={y + 64} w={88} d={18} h={12} top="#3f4255" front="#2c2e3c" />
-          <rect x={x + 20} y={y + 56} width={88} height="10" fill="#26283a" />
-          <Box x={x + w - 108} y={y + 64} w={88} d={18} h={12} top="#3f4255" front="#2c2e3c" />
-          <rect x={x + w - 108} y={y + 56} width={88} height="10" fill="#26283a" />
-          <Box x={x + w / 2 - 22} y={y + 98} w={44} d={16} h={6} top={C.deskTop} front={C.deskFront} />
-          <Plant x={x + 16} y={y + 44} />
-          <Plant x={x + w - 16} y={y + 44} />
+          <WallScreen x={x + w / 2 - 20} y={y + 2} w={80} h={19} chart={1} />
+          <rect x={x + 30} y={y + 58} width={w - 60} height={96} fill="url(#rug)" opacity="0.7" />
+          <Sofa x={x + 50} y={y + 46} w={w - 100} />
+          <Box x={x + w / 2 - 28} y={y + 92} w={56} d={20} h={6} top={C.deskTop} front={C.deskFront} />
+          <Mug x={x + w / 2 - 14} y={y + 98} />
+          <Plant x={x + w / 2 + 12} y={y + 96} small />
+          <Armchair x={x + 22} y={y + 88} />
+          <Armchair x={x + w - 46} y={y + 88} />
+          <FloorLamp x={x + 24} y={y + 48} />
+          <Shelf x={x + w - 42} y={y + 26} />
+          <Plant x={x + 16} y={y + h - 26} />
         </g>
       );
     case 'pantry':
@@ -463,6 +603,12 @@ function Furniture({ room }: { room: Room }) {
               ))}
             </g>
           ))}
+          {/* Operator desk in front of the racks. */}
+          <Box x={x + 66} y={y + 136} w={60} d={12} h={8} top={C.metalTop} front={C.metalFront} />
+          <Monitor x={x + 70} y={y + 128} w={22} h={13} color={C.glowGreen} />
+          <Monitor x={x + 98} y={y + 128} w={22} h={13} />
+          <circle cx={x + 30} cy={y + 150} r="16" fill="url(#glow-warm)" shapeRendering="auto" />
+          <Plant x={x + 24} y={y + 146} small />
         </g>
       );
     case 'rest':

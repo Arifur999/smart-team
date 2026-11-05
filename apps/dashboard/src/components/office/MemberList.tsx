@@ -1,8 +1,7 @@
 import type { AgentStats } from '@smart-team/shared';
 import { totalTokens } from '@smart-team/shared';
-import { lookOf } from '@/lib/characters';
 import { formatTokens, type OfficeMember, type Tone } from '@/lib/office';
-import { PixelSprite } from './PixelSprite';
+import { CharacterFigure } from './CharacterFigure';
 
 const TONE_DOT: Record<Tone, string> = { busy: 'bg-accent', waiting: 'bg-warn', idle: 'bg-idle', off: 'bg-idle/50' };
 
@@ -33,7 +32,7 @@ export function MemberList({ members, stats, selectedId, onSelect }: Props) {
                       className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left ${m.id === selectedId ? 'bg-chip' : 'hover:bg-chip/60'}`}
                     >
                       <span className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full ring-2" style={{ background: '#0c0e13', ['--tw-ring-color' as string]: m.color }}>
-                        <PixelSprite look={lookOf(m.id)} bust size={30} pose="stand" />
+                        <CharacterFigure id={m.id} bust size={30} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline justify-between gap-2">

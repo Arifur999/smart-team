@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { lookOf } from '@/lib/characters';
 import { MAP_H, MAP_W, type OfficeMember, type RoomId } from '@/lib/office';
 import { speechFor } from '@/lib/speech';
 import { OfficeBuilding } from './OfficeBuilding';
-import { PixelSprite } from './PixelSprite';
+import { CharacterFigure } from './CharacterFigure';
 
 interface Props {
   members: OfficeMember[];
@@ -100,9 +99,10 @@ function Character({ member, tick, selected, onSelect }: { member: OfficeMember;
         style={{ transform: walking && facingLeft ? 'scaleX(-1)' : undefined }}
       >
         {/* Sized in container units so characters grow and shrink with the map. */}
-        <PixelSprite look={lookOf(member.id)} pose={pose} size={36} className="!h-[clamp(58px,7.4cqw,118px)] !w-[clamp(34px,4.3cqw,68px)]" />
+        <CharacterFigure id={member.id} pose={pose} size={36} className="!h-[clamp(58px,7.4cqw,118px)] !w-[clamp(46px,5.9cqw,94px)]" />
       </span>
-      <span className="-mt-0.5 max-w-[clamp(70px,8cqw,120px)] truncate px-1 text-[clamp(9px,1cqw,13px)] font-semibold leading-tight text-white [text-shadow:0_1px_2px_#000,0_0_4px_#000]">
+      {/* Beds sit close together, so sleepers show their name only on hover (the hover card) or when selected. */}
+      <span className={`-mt-0.5 ${activity.tone === 'off' && !selected ? 'hidden' : ''} max-w-[clamp(44px,5.6cqw,96px)] truncate px-0.5 text-[clamp(8px,0.95cqw,12px)] font-semibold leading-tight text-white [text-shadow:0_1px_2px_#000,0_0_4px_#000]`}>
         {member.name}
       </span>
     </button>
