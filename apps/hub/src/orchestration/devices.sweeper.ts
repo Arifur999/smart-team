@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { HEARTBEAT_MS } from '@smart-team/shared';
 import { DashboardGateway } from './dashboard.gateway.js';
-import { DevicesService } from './devices.service.js';
+import { DevicesService } from '../devices/devices.service.js';
 
 /** Catches agents that vanish without a clean disconnect (sleep, cable pulled). */
 @Injectable()

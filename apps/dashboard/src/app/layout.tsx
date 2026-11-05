@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { NavLinks } from '@/components/NavLinks';
 import './globals.css';
 
 const geistSans = Geist({
@@ -25,8 +26,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           Skip to content
         </a>
         <nav className="border-b border-line bg-surface">
-          <div className="mx-auto flex h-14 w-full max-w-6xl items-center px-4 sm:px-6">
+          <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-6 px-4 sm:px-6">
             <span className="font-semibold tracking-tight">Smart Team</span>
+            <NavLinks />
           </div>
         </nav>
         {children}

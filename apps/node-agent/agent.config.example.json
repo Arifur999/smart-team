@@ -3,5 +3,11 @@
     { "name": "Projects", "path": "D:\\dev\\projects", "tags": ["code"] },
     { "name": "Sound effects", "path": "D:\\media\\sfx", "tags": ["sfx", "audio"] },
     { "name": "VFX references", "path": "D:\\media\\vfx-refs", "tags": ["vfx-reference", "video"] }
-  ]
+  ],
+  "claude": {
+    "command": "claude",
+    "permissionMode": "acceptEdits",
+    "allowedTools": ["Bash(npm test:*)", "Bash(npm run lint:*)", "Bash(git status:*)", "Bash(git diff:*)"],
+    "maxTurns": 60
+  }
 }

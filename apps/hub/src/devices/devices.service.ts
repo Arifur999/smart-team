@@ -85,6 +85,16 @@ export class DevicesService {
     return count;
   }
 
+  /** The device's OS and shared folder paths, used to check where a task may run. Null when it does not exist. */
+  async sharedFolders(deviceId: string): Promise<{ platform: string; folders: string[] } | null> {
+    const device = await this.prisma.device.findUnique({
+      where: { id: deviceId },
+      select: { platform: true, resources: { where: { kind: 'FOLDER' }, select: { path: true } } },
+    });
+    if (!device) return null;
+    return { platform: device.platform, folders: device.resources.flatMap((r) => (r.path ? [r.path] : [])) };
+  }
+
   async list(): Promise<DeviceView[]> {
     const rows = await this.prisma.device.findMany({
       select: DEVICE_SELECT,

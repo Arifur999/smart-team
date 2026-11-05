@@ -14,17 +14,30 @@ const folderSchema = z.object({
   tags: z.array(z.string().min(1).max(40)).max(20).default([]),
 });
 
+const claudeSchema = z.object({
+  /** The Claude Code executable. "claude" works when it is on PATH. */
+  command: z.string().min(1).default('claude'),
+  /** Permission mode for approved work. Plans always run in "plan" mode, which cannot change files. */
+  permissionMode: z.enum(['acceptEdits', 'default', 'bypassPermissions']).default('acceptEdits'),
+  /** Extra tools approved work may use without asking, e.g. "Bash(npm test:*)". */
+  allowedTools: z.array(z.string().min(1)).max(100).default([]),
+  maxTurns: z.number().int().positive().max(500).optional(),
+});
+
 const fileSchema = z.object({
   folders: z.array(folderSchema).max(100).default([]),
+  claude: claudeSchema.prefault({}),
 });
 
 export type FolderConfig = z.infer<typeof folderSchema>;
+export type ClaudeConfig = z.infer<typeof claudeSchema>;
 
 export interface AgentConfig {
   hubUrl: string;
   token: string;
   deviceName: string;
   folders: FolderConfig[];
+  claude: ClaudeConfig;
 }
 
 export function loadConfig(configPath = 'agent.config.json'): AgentConfig {
@@ -35,12 +48,13 @@ export function loadConfig(configPath = 'agent.config.json'): AgentConfig {
   }
 
   const env = envSchema.parse(process.env);
-  const file = existsSync(configPath) ? fileSchema.parse(JSON.parse(readFileSync(configPath, 'utf8'))) : { folders: [] };
+  const file = fileSchema.parse(existsSync(configPath) ? JSON.parse(readFileSync(configPath, 'utf8')) : {});
 
   return {
     hubUrl: env.HUB_URL,
     token: env.AGENT_TOKEN,
     deviceName: env.DEVICE_NAME || hostname(),
     folders: file.folders,
+    claude: file.claude,
   };
 }

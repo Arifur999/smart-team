@@ -1,9 +1,8 @@
 'use client';
 
-import { DASHBOARD_NAMESPACE, DashboardEvents, type DeviceView } from '@smart-team/shared';
+import { DashboardEvents, type DeviceView } from '@smart-team/shared';
 import { useEffect, useState } from 'react';
-import { io } from 'socket.io-client';
-import { hubUrl } from '@/lib/hub';
+import { hubSocket } from '@/lib/socket';
 
 export type HubConnection = 'connecting' | 'connected' | 'disconnected';
 
@@ -13,13 +12,23 @@ export function useDevices() {
   const [connection, setConnection] = useState<HubConnection>('connecting');
 
   useEffect(() => {
-    const socket = io(new URL(DASHBOARD_NAMESPACE, hubUrl()).toString());
-    socket.on('connect', () => setConnection('connected'));
-    socket.on('disconnect', () => setConnection('disconnected'));
-    socket.on('connect_error', () => setConnection('disconnected'));
-    socket.on(DashboardEvents.devices, (snapshot: DeviceView[]) => setDevices(snapshot));
+    const socket = hubSocket();
+    const onConnect = () => setConnection('connected');
+    const onDisconnect = () => setConnection('disconnected');
+    const onDevices = (snapshot: DeviceView[]) => setDevices(snapshot);
+
+    if (socket.connected) onConnect();
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('connect_error', onDisconnect);
+    socket.on(DashboardEvents.devices, onDevices);
+    // The hub sends the snapshot when a socket connects; ask again for pages opened later.
+    if (socket.connected) socket.emit(DashboardEvents.devices);
     return () => {
-      socket.close();
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('connect_error', onDisconnect);
+      socket.off(DashboardEvents.devices, onDevices);
     };
   }, []);
 

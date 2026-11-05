@@ -12,8 +12,19 @@
   --idle: #a1a1aa;
   --idle-soft: #f1f1f3;
   --danger: #b91c1c;
+  --danger-soft: #fee2e2;
+  --warn: #a16207;
+  --warn-soft: #fef3c7;
   --accent: #4338ca;
   --accent-soft: #e0e7ff;
+  /* The terminal stays dark in both themes, like a real one. */
+  --term-bg: #0d0f14;
+  --term-fg: #d6d9e0;
+  --term-muted: #7d8494;
+  --term-accent: #8ab4ff;
+  --term-ok: #6ee7a0;
+  --term-danger: #ff8a8a;
+  --term-warn: #f5c76a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -29,6 +40,9 @@
     --idle: #71717a;
     --idle-soft: #222227;
     --danger: #f87171;
+    --danger-soft: #3a1515;
+    --warn: #fbbf24;
+    --warn-soft: #3a2c0c;
     --accent: #a5b4fc;
     --accent-soft: #23234a;
   }
@@ -46,6 +60,16 @@
   --color-idle: var(--idle);
   --color-idle-soft: var(--idle-soft);
   --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-term-bg: var(--term-bg);
+  --color-term-fg: var(--term-fg);
+  --color-term-muted: var(--term-muted);
+  --color-term-accent: var(--term-accent);
+  --color-term-ok: var(--term-ok);
+  --color-term-danger: var(--term-danger);
+  --color-term-warn: var(--term-warn);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --font-sans: var(--font-geist-sans);

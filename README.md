@@ -6,9 +6,18 @@ Teams (planned): **nextDev** (development), **nextEditor** (video editing), **ne
 
 ## Status
 
-Phase 1 of 12 is done: PCs connect to the hub and the dashboard shows them online or offline live, with the tools and shared folders each PC offers.
+- **Phase 1, done:** PCs connect to the hub and the dashboard shows them online or offline live, with the tools and shared folders each PC offers.
+- **Phase 2, done:** send a task to a PC and watch Claude Code work in a live terminal on the dashboard. Every task is planned first by the plan agent (Maria Hill) in Claude Code's read-only plan mode; work starts only when you click **Approve plan**. Type into the terminal to ask for a new plan or to tell Claude what to do next in the same session. **Cancel** stops the run on the PC.
+- **Next:** the Agent Office home page, a live office map of each team.
 
-Next: sending a task to one PC and watching Claude Code run it live (phase 2).
+## How a task runs
+
+1. **Tasks → New task:** pick a PC, one of its shared folders, and describe the work.
+2. The PC's agent runs `claude -p --permission-mode plan` in that folder. Nothing is changed. The plan streams into the task's terminal.
+3. **Approve plan** resumes the same Claude session with your PC's normal permission mode and carries the plan out.
+4. Anything you type into the terminal goes to Claude as the next instruction, never to a shell.
+
+Tasks only run inside folders the PC shares in `agent.config.json`; the hub and the agent both check this. Each PC runs one task at a time and queues the rest.
 
 ## Layout
 
@@ -65,7 +74,11 @@ npm run build:shared
 ```
 
 1. Create `apps/node-agent/.env` from `.env.example`. Set `HUB_URL` to `http://<hub-pc-ip>:4000` and `AGENT_TOKEN` to the shared token. Set `DEVICE_NAME` if you want a friendlier name than the hostname (it must be unique per PC).
-2. Optional: copy `apps/node-agent/agent.config.example.json` to `agent.config.json` and list the folders this PC shares, with tags such as `sfx`, `vfx-reference` or `code`. Team leaders will route work by these tags.
+2. Copy `apps/node-agent/agent.config.example.json` to `agent.config.json`:
+   - `folders`: the folders this PC shares, with tags such as `sfx`, `vfx-reference` or `code`. Tasks can only run inside these, and team leaders will route work by the tags.
+   - `claude.permissionMode`: how approved work runs. `acceptEdits` (default) lets Claude edit files without asking; shell commands still need to be listed in `allowedTools`.
+   - `claude.allowedTools`: commands approved work may run, e.g. `"Bash(npm test:*)"`. Anything not listed is refused and shows as an error in the terminal.
+   - `claude.maxTurns`: optional cap on how long one run may go.
 3. Start the agent:
 
 ```bash
