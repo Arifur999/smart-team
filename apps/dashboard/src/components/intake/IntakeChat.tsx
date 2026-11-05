@@ -53,6 +53,8 @@ export function IntakeChat({ taskId }: { taskId: string }) {
       setDraft('');
     });
 
+  const confirm = () => act(() => api.intakeConfirm(taskId));
+
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey && draft.trim()) {
       event.preventDefault();
@@ -124,6 +126,11 @@ export function IntakeChat({ taskId }: { taskId: string }) {
             >
               Send
             </button>
+            {intake.phase === 'READY' && (
+              <button onClick={confirm} disabled={busy} className="whitespace-nowrap rounded-lg bg-ok px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+                Confirm brief
+              </button>
+            )}
           </div>
           {intake.phase === 'ASKING' && field && (
             <div className="mt-2 flex gap-2 text-xs">
@@ -142,7 +149,7 @@ export function IntakeChat({ taskId }: { taskId: string }) {
         </footer>
       </section>
 
-      <BriefChecklist intake={intake} busy={busy} onConfirm={() => act(() => api.intakeConfirm(taskId))} onRemove={(id) => act(() => api.removeAsset(taskId, id))} />
+      <BriefChecklist intake={intake} busy={busy} onConfirm={confirm} onRemove={(id) => act(() => api.removeAsset(taskId, id))} />
     </div>
   );
 }

@@ -12,6 +12,8 @@ const MAX_REVIEW_ROUNDS = 3;
 const CLARIFICATIONS = '_clarifications';
 const SKIP_WORDS = new Set(['skip', 'none', 'no', 'n/a', '-']);
 const NEXT_WORDS = new Set(['next', 'done', 'continue', 'that is all', "that's all"]);
+/** Typed when the brief is ready, these confirm it instead of being added to it. */
+const CONFIRM_WORDS = new Set(['confirm', 'confirmed', 'ok', 'okay', 'yes', 'go', 'go ahead', 'start', 'start planning', 'approve', 'approved', 'looks good', 'lgtm', 'done', 'proceed']);
 
 /**
  * The intake agent's conversation: one template question at a time, then a brief check by Claude,
@@ -85,7 +87,9 @@ export class IntakeService implements OnModuleInit {
       return this.askNext(taskId);
     }
 
-    // CLARIFYING or READY: your words go to the brief and it is checked again.
+    if (brief.phase === 'READY' && CONFIRM_WORDS.has(said.toLowerCase().replace(/[.!\s]+$/, ''))) return this.confirm(taskId);
+
+    // CLARIFYING, or READY with changes: your words go to the brief and it is checked again.
     await this.addClarification(taskId, said);
     return this.check(taskId);
   }

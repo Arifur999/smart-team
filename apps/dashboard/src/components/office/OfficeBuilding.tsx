@@ -139,10 +139,16 @@ const BACK = 26;
 /** Depth of the glass front walls. */
 const GLASS = 14;
 
+/** Width of a doorway. */
+const DOOR_W = 40;
+
 function RoomShape({ room, count }: { room: Room; count: number }) {
-  const { x, y, w, h } = room;
+  const { x, y, w, h, door } = room;
   const occupied = count > 0;
   const label = `${room.label.toUpperCase()}${occupied ? ` · ${count}` : ''}`;
+  const chipW = label.length * 6.4 + 12;
+  // The name chip sits on the top wall; it moves past a top doorway instead of covering it.
+  const chipX = door.side === 'top' && door.x - DOOR_W / 2 < x + 6 + chipW ? door.x + DOOR_W / 2 + 4 : x + 6;
 
   return (
     <g>
@@ -155,6 +161,7 @@ function RoomShape({ room, count }: { room: Room; count: number }) {
       ))}
       <rect x={x} y={y + BACK - 4} width={w} height="4" fill={C.baseboard} />
       <rect x={x} y={y + BACK} width={w} height="6" fill="#000" opacity="0.25" />
+      {door.side === 'top' && <BackDoorway x={door.x - DOOR_W / 2} y={y} />}
       {/* Inner shadow along the side walls. */}
       <rect x={x} y={y + BACK} width="5" height={h - BACK} fill="#000" opacity="0.18" />
       <rect x={x + w - 5} y={y + BACK} width="5" height={h - BACK} fill="#000" opacity="0.18" />
@@ -162,11 +169,24 @@ function RoomShape({ room, count }: { room: Room; count: number }) {
       <WallLamps room={room} />
       <Furniture room={room} />
 
-      {/* Walls on the top and sides. */}
-      <WallBand x={x - WALL} y={y - WALL} w={w + WALL * 2} h={WALL} />
+      {/* Walls on the top (with a gap for a top doorway) and sides. */}
+      {door.side === 'top' ? (
+        <>
+          <WallBand x={x - WALL} y={y - WALL} w={door.x - DOOR_W / 2 - x + WALL} h={WALL} />
+          <WallBand x={door.x + DOOR_W / 2} y={y - WALL} w={x + w + WALL - door.x - DOOR_W / 2} h={WALL} />
+        </>
+      ) : (
+        <WallBand x={x - WALL} y={y - WALL} w={w + WALL * 2} h={WALL} />
+      )}
       <WallBand x={x - WALL} y={y} w={WALL} h={h} />
       <WallBand x={x + w} y={y} w={WALL} h={h} />
-      {room.open ? <WallBand x={x - WALL} y={y + h} w={WALL * 3} h={WALL} /> : <GlassFront x={x} y={y + h - GLASS} w={w} />}
+      {room.open ? (
+        <WallBand x={x - WALL} y={y + h} w={WALL * 3} h={WALL} />
+      ) : door.side === 'top' ? (
+        <WallBand x={x - WALL} y={y + h} w={w + WALL * 2} h={WALL} />
+      ) : (
+        <GlassFront x={x} y={y + h - GLASS} w={w} doorX={door.x} />
+      )}
 
       {occupied && (
         <>
@@ -177,8 +197,8 @@ function RoomShape({ room, count }: { room: Room; count: number }) {
 
       {/* Room name chip on the top wall, drawn last so nothing covers it. */}
       <g>
-        <rect x={x + 6} y={y - 12} width={label.length * 6.4 + 12} height="15" rx="2" fill={C.chipBg} stroke={occupied ? C.occupied : C.chipBorder} opacity="0.9" />
-        <text x={x + 12} y={y - 1} fill={occupied ? '#e6e1ff' : C.chipText} fontSize="9.5" fontFamily="ui-monospace, monospace" letterSpacing="0.8" fontWeight="700">
+        <rect x={chipX} y={y - 12} width={chipW} height="15" rx="2" fill={C.chipBg} stroke={occupied ? C.occupied : C.chipBorder} opacity="0.9" />
+        <text x={chipX + 6} y={y - 1} fill={occupied ? '#e6e1ff' : C.chipText} fontSize="9.5" fontFamily="ui-monospace, monospace" letterSpacing="0.8" fontWeight="700">
           {label}
         </text>
       </g>
@@ -196,10 +216,23 @@ function WallBand({ x, y, w, h }: { x: number; y: number; w: number; h: number }
   );
 }
 
-/** Glass front wall with a framed double door in the middle. */
-function GlassFront({ x, y, w }: { x: number; y: number; w: number }) {
+/** Doorway in a back wall, seen from above: the corridor floor shows through, between two door frames. */
+function BackDoorway({ x, y }: { x: number; y: number }) {
+  return (
+    <g>
+      <rect x={x} y={y} width={DOOR_W} height={BACK + 6} fill="url(#corridor)" />
+      <rect x={x} y={y + BACK} width={DOOR_W} height="6" fill="#000" opacity="0.12" />
+      <rect x={x - 3} y={y} width="3" height={BACK} fill={C.glassFrame} />
+      <rect x={x + DOOR_W} y={y} width="3" height={BACK} fill={C.glassFrame} />
+      <rect x={x} y={y + BACK + 4} width={DOOR_W} height="2" fill="#3a3d45" />
+    </g>
+  );
+}
+
+/** Glass front wall with a framed double door. */
+function GlassFront({ x, y, w, doorX: doorMid }: { x: number; y: number; w: number; doorX: number }) {
   const doorW = 46;
-  const doorX = x + w / 2 - doorW / 2;
+  const doorX = doorMid - doorW / 2;
   return (
     <g>
       <GlassPane x={x} y={y} w={doorX - x} />
@@ -255,7 +288,7 @@ function WallLamps({ room }: { room: Room }) {
 function Hallways() {
   return (
     <g>
-      {[300, 420, 540].map((y) => (
+      {[300, 400, 640].map((y) => (
         <g key={y}>
           <circle cx={458} cy={y} r="22" fill="url(#glow-warm)" shapeRendering="auto" />
           <rect className="lamp" x={458} y={y - 5} width="3" height="10" fill={C.lamp} />
@@ -266,11 +299,11 @@ function Hallways() {
       {/* Between the briefing and meeting rooms: a water cooler and plants. */}
       <Plant x={265} y={56} />
       <WaterCooler x={256} y={110} />
-      <Plant x={265} y={210} />
+      <Plant x={265} y={188} />
       {/* Between the meeting and approval rooms: a bookcase and a cabinet. */}
       <Bookcase x={624} y={34} />
       <FilingCabinet x={627} y={118} />
-      <Plant x={640} y={210} />
+      <Plant x={640} y={188} />
       <Stairs x={462} y={672} w={56} h={44} />
     </g>
   );
@@ -778,7 +811,7 @@ function Furniture({ room }: { room: Room }) {
         <g>
           <Projector x={cx - 52} y={y + 1} w={112} />
           {Array.from({ length: 16 }, (_, i) => (
-            <Chair key={i} x={x + 58 + (i % 4) * 40} y={y + 84 + Math.floor(i / 4) * 30} />
+            <Chair key={i} x={x + 58 + (i % 4) * 40} y={y + 76 + Math.floor(i / 4) * 27} />
           ))}
           <FilingCabinet x={x + w - 30} y={y + 46} w={22} />
           <Plant x={x + 18} y={y + 50} />
@@ -887,8 +920,8 @@ function Furniture({ room }: { room: Room }) {
     case 'lounge':
       return (
         <g>
-          <WallTV x={cx - 30} y={y + 3} w={80} />
-          <Bookcase x={x + w - 42} y={y + 2} w={30} h={46} />
+          {/* The doorway is at the top right, so the TV hangs left of the middle. */}
+          <WallTV x={cx - 50} y={y + 3} w={80} />
           <rect x={x + 22} y={y + 52} width={w - 44} height={104} fill="url(#rug-dark)" />
           <Sofa x={x + 40} y={y + 40} w={w - 84} />
           <Box x={cx - 28} y={y + 86} w={56} d={20} h={7} top={C.woodTop} front={C.woodFront} light={C.woodLight} />
@@ -904,13 +937,13 @@ function Furniture({ room }: { room: Room }) {
     case 'pantry':
       return (
         <g>
-          {/* Fridge, then a counter with a coffee machine, microwave and sink. */}
+          {/* Fridge, then a counter with a coffee machine, microwave and sink; the doorway is at the top right. */}
           <Box x={x + 10} y={y + 6} w={30} d={8} h={60} top="#c3c8d1" front="#9aa1ad" />
           <rect x={x + 10} y={y + 36} width="30" height="1" fill="#6b7280" />
           <rect x={x + 34} y={y + 20} width="2" height="12" fill="#5f6775" />
           <rect x={x + 34} y={y + 42} width="2" height="16" fill="#5f6775" />
-          <Box x={x + 48} y={y + 20} w={w - 58} d={20} h={22} top="#3d4048" front="#25272d" light="#555a64" />
-          {Array.from({ length: Math.floor((w - 58) / 30) }, (_, i) => (
+          <Box x={x + 48} y={y + 20} w={w - 110} d={20} h={22} top="#3d4048" front="#25272d" light="#555a64" />
+          {Array.from({ length: Math.floor((w - 110) / 30) }, (_, i) => (
             <rect key={i} x={x + 52 + i * 30} y={y + 44} width="26" height="16" fill="#2c2f36" />
           ))}
           <rect x={x + 58} y={y + 8} width="16" height="18" fill="#1c1d22" />
@@ -921,8 +954,6 @@ function Furniture({ room }: { room: Room }) {
           <rect x={x + 122} y={y + 24} width="26" height="12" fill="#6f7a88" />
           <rect x={x + 124} y={y + 26} width="22" height="8" fill="#4a5563" />
           <rect x={x + 133} y={y + 18} width="2" height="7" fill="#9aa1ad" />
-          <Mug x={x + 160} y={y + 26} />
-          <Plant x={x + w - 14} y={y + 16} small />
           {/* Dining table with stools. */}
           <Box x={cx - 48} y={y + 98} w={96} d={26} h={8} top={C.woodTop} front={C.woodFront} light={C.woodLight} />
           <Plant x={cx} y={y + 104} small />
@@ -959,10 +990,10 @@ function Furniture({ room }: { room: Room }) {
             <ServerRack key={i} x={x + 96 + i * 34} y={y + 6} h={50} seed={i} />
           ))}
           {/* Operator desk beside the racks. */}
-          <WoodDesk x={x + 12} y={y + 46} w={68} d={18} />
-          <Monitor x={x + 16} y={y + 34} w={26} h={16} seed={5} />
-          <Monitor x={x + 46} y={y + 34} w={26} h={16} seed={7} />
-          <DeskLamp x={x + 72} y={y + 40} />
+          <WoodDesk x={x + 12} y={y + 58} w={68} d={18} />
+          <Monitor x={x + 16} y={y + 46} w={26} h={16} seed={5} />
+          <Monitor x={x + 46} y={y + 46} w={26} h={16} seed={7} />
+          <DeskLamp x={x + 72} y={y + 52} />
         </g>
       );
   }

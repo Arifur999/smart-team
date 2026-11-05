@@ -1,30 +1,22 @@
-import { ROOMS, type Point, type RoomId } from './office';
+import { HALLS, ROOMS, SPINE_X, type HallId, type Point, type RoomId } from './office';
 
 /**
  * Walking routes through the office, so people leave by a door, follow the corridors and enter the
  * other room by its door instead of gliding through walls.
- *
- * The corridors: a hallway along the bottom of the top rooms, the central corridor between the workspace
- * and the command center, a hallway under each of those two, and one along the bottom of the floor.
  */
-type HallId = 'top' | 'west' | 'east' | 'bottom';
 
-const HALL_Y: Record<HallId, number> = { top: 241, west: 513, east: 590, bottom: 712 };
-/** The central corridor every hallway meets. */
-const SPINE_X = 490;
-
-/** Each room's doorway (on its hallway) and the hallway it opens onto. */
-const DOORS: Record<RoomId, { x: number; hall: HallId }> = {
-  briefing: { x: 128, hall: 'top' },
-  meeting: { x: 451, hall: 'top' },
-  approval: { x: 771, hall: 'top' },
-  rest: { x: 939, hall: 'top' },
-  workspace: { x: 231, hall: 'west' },
-  command: { x: 759, hall: 'east' },
-  lounge: { x: 119, hall: 'bottom' },
-  pantry: { x: 344, hall: 'bottom' },
-  lab: { x: 635, hall: 'bottom' },
-  server: { x: 870, hall: 'bottom' },
+/** The hallway each room's door opens onto. */
+const HALL_OF: Record<RoomId, HallId> = {
+  briefing: 'top',
+  meeting: 'top',
+  approval: 'top',
+  rest: 'top',
+  workspace: 'west',
+  lounge: 'west',
+  pantry: 'west',
+  command: 'east',
+  lab: 'east',
+  server: 'east',
 };
 
 /** Walking speed in map units per second. */
@@ -36,10 +28,10 @@ export function walkPath(from: Point, to: Point): Point[] {
   const end = roomAt(to);
   if (start && start === end) return [to];
 
-  const leave = start ? { points: [door(start)], hall: DOORS[start].hall } : joinHall(from);
-  const enter = end ? { points: [door(end)], hall: DOORS[end].hall } : joinHall(to);
+  const leave = start ? { points: [doorway(start)], hall: HALL_OF[start] } : joinHall(from);
+  const enter = end ? { points: [doorway(end)], hall: HALL_OF[end] } : joinHall(to);
   // Different hallways meet only at the central corridor.
-  const across = leave.hall === enter.hall ? [] : [{ x: SPINE_X, y: HALL_Y[leave.hall] }, { x: SPINE_X, y: HALL_Y[enter.hall] }];
+  const across = leave.hall === enter.hall ? [] : [{ x: SPINE_X, y: HALLS[leave.hall] }, { x: SPINE_X, y: HALLS[enter.hall] }];
 
   return dedupe([...leave.points, ...across, ...enter.points, to]);
 }
@@ -48,16 +40,16 @@ function roomAt(p: Point): RoomId | null {
   return ROOMS.find((r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h)?.id ?? null;
 }
 
-function door(room: RoomId): Point {
-  const { x, hall } = DOORS[room];
-  return { x, y: HALL_Y[hall] };
+/** Just outside the room's door, in the middle of its hallway. */
+function doorway(id: RoomId): Point {
+  return { x: ROOMS.find((r) => r.id === id)!.door.x, y: HALLS[HALL_OF[id]] };
 }
 
 /** Someone already in a corridor (stopped mid-walk) steps onto the nearest hallway first. */
 function joinHall(p: Point): { points: Point[]; hall: HallId } {
-  const hall = (Object.keys(HALL_Y) as HallId[]).reduce((best, h) => (Math.abs(HALL_Y[h] - p.y) < Math.abs(HALL_Y[best] - p.y) ? h : best));
+  const hall = (Object.keys(HALLS) as HallId[]).reduce((best, h) => (Math.abs(HALLS[h] - p.y) < Math.abs(HALLS[best] - p.y) ? h : best));
   const onSpine = Math.abs(p.x - SPINE_X) < 30;
-  return { points: [{ x: onSpine ? SPINE_X : p.x, y: HALL_Y[hall] }], hall };
+  return { points: [{ x: onSpine ? SPINE_X : p.x, y: HALLS[hall] }], hall };
 }
 
 function dedupe(points: Point[]): Point[] {

@@ -16,6 +16,8 @@ export interface Room {
   h: number;
   /** Open plan: no glass front wall. */
   open?: boolean;
+  /** The doorway: its middle, and the wall it is in. Top-row and middle rooms open at the bottom (the glass front), bottom-row rooms at the top. */
+  door: { x: number; side: 'top' | 'bottom' };
   /** Where people stand (their feet), in the order they fill up. */
   slots: Point[];
 }
@@ -28,7 +30,7 @@ const grid = (x0: number, y0: number, cols: number, rows: number, dx: number, dy
   Array.from({ length: rows * cols }, (_, i) => ({ x: x0 + (i % cols) * dx, y: y0 + Math.floor(i / cols) * dy }));
 
 /** Workspace double desks (top-left of each). Two people work at each one, standing at their chair in front of it. */
-export const DESKS: Point[] = grid(70, 300, 2, 2, 200, 98);
+export const DESKS: Point[] = grid(70, 296, 2, 2, 200, 98);
 export const DESK_W = 150;
 /** Where the two seats of a desk are, from its left edge. */
 export const DESK_SEATS = [38, 112];
@@ -47,37 +49,47 @@ export const BED_W = 40;
 /**
  * One building, laid out like a real office floor: meeting rooms along the top, an open-plan workspace and
  * the command center either side of a central corridor, and the lounge, pantry, lab and server room at
- * the bottom.
+ * the bottom. Real corridors run between the rows (see HALLS), so people walk from door to door.
  */
 export const ROOMS: Room[] = [
-  { id: 'briefing', label: 'Briefing Room', x: 12, y: 12, w: 232, h: 222, slots: grid(56, 214, 4, 1, 50, 0) },
-  { id: 'meeting', label: 'Meeting Room', x: 286, y: 12, w: 330, h: 222, slots: grid(336, 214, 5, 1, 58, 0) },
-  { id: 'approval', label: 'Approval Room', x: 664, y: 12, w: 214, h: 222, slots: grid(712, 214, 3, 1, 58, 0) },
-  { id: 'rest', label: 'Rest Room', x: 890, y: 12, w: 98, h: 222, slots: BEDS.map((b) => ({ x: b.x + BED_W / 2, y: b.y + 46 })) },
+  { id: 'briefing', label: 'Briefing Room', x: 12, y: 12, w: 232, h: 200, door: { x: 128, side: 'bottom' }, slots: grid(56, 194, 4, 1, 50, 0) },
+  { id: 'meeting', label: 'Meeting Room', x: 286, y: 12, w: 330, h: 200, door: { x: 451, side: 'bottom' }, slots: grid(336, 194, 5, 1, 58, 0) },
+  { id: 'approval', label: 'Approval Room', x: 664, y: 12, w: 214, h: 200, door: { x: 771, side: 'bottom' }, slots: grid(712, 194, 3, 1, 58, 0) },
+  { id: 'rest', label: 'Rest Room', x: 890, y: 12, w: 98, h: 200, door: { x: 939, side: 'bottom' }, slots: BEDS.map((b) => ({ x: b.x + BED_W / 2, y: b.y + 46 })) },
   {
     id: 'workspace',
     label: 'Workspace',
     x: 12,
-    y: 248,
+    y: 252,
     w: 438,
-    h: 262,
+    h: 250,
     open: true,
+    door: { x: 231, side: 'bottom' },
     slots: DESKS.flatMap((d) => DESK_SEATS.map((s) => ({ x: d.x + s, y: d.y + SEAT_Y }))),
   },
   {
     id: 'command',
     label: 'Command Center',
     x: 530,
-    y: 248,
+    y: 252,
     w: 458,
-    h: 340,
+    h: 316,
+    door: { x: 759, side: 'bottom' },
     slots: CONSOLES.flatMap((c) => CONSOLE_SEATS.map((s) => ({ x: c.x + s, y: c.y + SEAT_Y }))),
   },
-  { id: 'lounge', label: 'Lounge', x: 12, y: 524, w: 214, h: 184, slots: grid(70, 630, 2, 2, 110, 56) },
-  { id: 'pantry', label: 'Pantry', x: 238, y: 524, w: 212, h: 184, slots: grid(282, 688, 3, 1, 62, 0) },
-  { id: 'lab', label: 'R&D Lab', x: 530, y: 600, w: 210, h: 108, slots: grid(574, 692, 3, 1, 60, 0) },
-  { id: 'server', label: 'Server Room', x: 752, y: 600, w: 236, h: 108, slots: grid(830, 692, 2, 1, 64, 0) },
+  { id: 'lounge', label: 'Lounge', x: 12, y: 538, w: 214, h: 170, door: { x: 186, side: 'top' }, slots: grid(70, 638, 2, 2, 110, 50) },
+  { id: 'pantry', label: 'Pantry', x: 238, y: 538, w: 212, h: 170, door: { x: 414, side: 'top' }, slots: grid(282, 690, 3, 1, 62, 0) },
+  { id: 'lab', label: 'R&D Lab', x: 530, y: 604, w: 210, h: 104, door: { x: 570, side: 'top' }, slots: grid(600, 690, 3, 1, 50, 0) },
+  { id: 'server', label: 'Server Room', x: 752, y: 604, w: 236, h: 104, door: { x: 802, side: 'top' }, slots: grid(830, 690, 2, 1, 64, 0) },
 ];
+
+/**
+ * The corridors people walk along: the hallway under the top rooms, the one under the workspace, the one
+ * under the command center, and the central corridor (SPINE_X) that joins them.
+ */
+export const HALLS = { top: 228, west: 516, east: 582 } as const;
+export type HallId = keyof typeof HALLS;
+export const SPINE_X = 490;
 export type Tone = 'busy' | 'waiting' | 'idle' | 'off';
 export type Pose = 'stand' | 'type' | 'sleep';
 
