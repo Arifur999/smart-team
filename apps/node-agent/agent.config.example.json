@@ -7,7 +7,7 @@
   "claude": {
     "command": "claude",
     "permissionMode": "acceptEdits",
-    "allowedTools": ["Bash(npm test:*)", "Bash(npm run lint:*)", "Bash(git status:*)", "Bash(git diff:*)"],
-    "maxTurns": 60
+    "allowedTools": ["Bash", "PowerShell", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch", "Skill", "Task", "TodoWrite", "NotebookEdit"],
+    "maxTurns": 200
   }
 }
