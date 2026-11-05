@@ -27,13 +27,15 @@ export const MAP_H = 720;
 const grid = (x0: number, y0: number, cols: number, rows: number, dx: number, dy: number): Point[] =>
   Array.from({ length: rows * cols }, (_, i) => ({ x: x0 + (i % cols) * dx, y: y0 + Math.floor(i / cols) * dy }));
 
-/** Workspace double desks (top-left of each). Two people sit behind each one, so their slots are just above it. */
-export const DESKS: Point[] = grid(84, 330, 2, 2, 190, 100);
+/** Workspace double desks (top-left of each). Two people work at each one, standing at their chair in front of it. */
+export const DESKS: Point[] = grid(70, 300, 2, 2, 200, 98);
 export const DESK_W = 150;
 /** Where the two seats of a desk are, from its left edge. */
 export const DESK_SEATS = [38, 112];
+/** How far below a desk or console's top edge its chairs are, which is where people stand. */
+export const SEAT_Y = 64;
 
-/** Command Center consoles (top-left): two long rows. Leaders stand behind them. */
+/** Command Center consoles (top-left): two long rows. Leaders stand at the chairs in front of them. */
 export const CONSOLES: Point[] = grid(600, 360, 1, 2, 0, 110);
 export const CONSOLE_W = 320;
 export const CONSOLE_SEATS = [80, 240];
@@ -60,7 +62,7 @@ export const ROOMS: Room[] = [
     w: 438,
     h: 262,
     open: true,
-    slots: DESKS.flatMap((d) => DESK_SEATS.map((s) => ({ x: d.x + s, y: d.y + 6 }))),
+    slots: DESKS.flatMap((d) => DESK_SEATS.map((s) => ({ x: d.x + s, y: d.y + SEAT_Y }))),
   },
   {
     id: 'command',
@@ -69,7 +71,7 @@ export const ROOMS: Room[] = [
     y: 248,
     w: 458,
     h: 340,
-    slots: CONSOLES.flatMap((c) => CONSOLE_SEATS.map((s) => ({ x: c.x + s, y: c.y + 4 }))),
+    slots: CONSOLES.flatMap((c) => CONSOLE_SEATS.map((s) => ({ x: c.x + s, y: c.y + SEAT_Y }))),
   },
   { id: 'lounge', label: 'Lounge', x: 12, y: 524, w: 214, h: 184, slots: grid(70, 630, 2, 2, 110, 56) },
   { id: 'pantry', label: 'Pantry', x: 238, y: 524, w: 212, h: 184, slots: grid(282, 688, 3, 1, 62, 0) },
