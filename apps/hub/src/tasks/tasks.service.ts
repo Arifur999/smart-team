@@ -31,6 +31,7 @@ const RUN_SELECT = {
 
 const TASK_SELECT = {
   id: true,
+  team: true,
   title: true,
   createdAt: true,
   // The newest run is the task's current state.
@@ -59,7 +60,7 @@ export class TasksService {
 
   /** Every task starts with a plan run; nothing on the PC changes until you approve it. */
   async create(input: CreateTaskInput): Promise<TaskSummary> {
-    const task = await this.prisma.task.create({ data: { title: input.title }, select: { id: true } });
+    const task = await this.prisma.task.create({ data: { team: input.team, title: input.title }, select: { id: true } });
     await this.addRun(task.id, { deviceId: input.deviceId, workDir: input.workDir, prompt: input.prompt, mode: 'PLAN' });
     return this.summary(task.id);
   }
@@ -223,6 +224,7 @@ function toSummary(task: TaskRow): TaskSummary {
   if (!run) throw new Error(`Task ${task.id} has no run`);
   return {
     id: task.id,
+    team: task.team,
     title: task.title,
     status: taskStatus(run),
     mode: run.mode,

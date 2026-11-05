@@ -8,7 +8,8 @@ Teams (planned): **nextDev** (development), **nextEditor** (video editing), **ne
 
 - **Phase 1, done:** PCs connect to the hub and the dashboard shows them online or offline live, with the tools and shared folders each PC offers.
 - **Phase 2, done:** send a task to a PC and watch Claude Code work in a live terminal on the dashboard. Every task is planned first by the plan agent (Maria Hill) in Claude Code's read-only plan mode; work starts only when you click **Approve plan**. Type into the terminal to ask for a new plan or to tell Claude what to do next in the same session. **Cancel** stops the run on the PC.
-- **Next:** the Agent Office home page, a live office map of each team.
+- **Agent Office, done:** the home page is a live office map per team (nextDev, nextEditor, nextDesign, NextMarketer). Members, named after Avengers characters, walk between rooms as their status changes: the plan agent to the Briefing Room while planning and the Approval Room while a plan waits for you, the Team Leader to the Command Center, the working member to a Workspace desk, everyone else to the Lounge. Click anyone to see their live log. Tasks now belong to a team.
+- **Next:** Skill Packs, so each team's members get their own Claude Code skills (phase 3).
 
 ## How a task runs
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { PLAN_AGENT_NAME } from '@smart-team/shared';
+import { PLAN_AGENT_NAME, TEAMS, type TaskSummary, type TeamId } from '@smart-team/shared';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useDevices } from '@/hooks/useDevices';
@@ -8,9 +8,17 @@ import { api } from '@/lib/api';
 
 const field = 'w-full rounded-lg border border-line bg-background px-3 py-2 text-sm outline-none focus:border-accent';
 
-export function NewTaskForm({ onClose }: { onClose: () => void }) {
+interface Props {
+  onClose: () => void;
+  defaultTeam?: TeamId;
+  /** Called with the new task instead of opening its page. */
+  onCreated?: (task: TaskSummary) => void;
+}
+
+export function NewTaskForm({ onClose, defaultTeam, onCreated }: Props) {
   const router = useRouter();
   const { devices } = useDevices();
+  const [team, setTeam] = useState<TeamId | ''>(defaultTeam ?? '');
   const [deviceId, setDeviceId] = useState('');
   const [workDir, setWorkDir] = useState('');
   const [title, setTitle] = useState('');
@@ -26,8 +34,10 @@ export function NewTaskForm({ onClose }: { onClose: () => void }) {
     setSaving(true);
     setError(null);
     try {
-      const task = await api.createTask({ title: title.trim(), prompt: prompt.trim(), deviceId, workDir });
-      router.push(`/tasks/${task.id}`);
+      if (!team) throw new Error('Choose a team.');
+      const task = await api.createTask({ team, title: title.trim(), prompt: prompt.trim(), deviceId, workDir });
+      if (onCreated) onCreated(task);
+      else router.push(`/tasks/${task.id}`);
     } catch (e) {
       setError((e as Error).message);
       setSaving(false);
@@ -49,6 +59,18 @@ export function NewTaskForm({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <label className="grid gap-1.5 text-sm sm:col-span-2">
+          <span className="font-medium">Team</span>
+          <select required className={field} value={team} onChange={(e) => setTeam(e.target.value as TeamId)}>
+            <option value="">Choose a team</option>
+            {TEAMS.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label} · {t.focus}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <label className="grid gap-1.5 text-sm">
           <span className="font-medium">PC</span>
           <select

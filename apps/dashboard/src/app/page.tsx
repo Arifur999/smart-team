@@ -1,6 +1,5 @@
-import { redirect } from 'next/navigation';
+import { AgentOffice } from '@/components/office/AgentOffice';
 
-// The Agent Office becomes the home page next; until then, tasks are the starting point.
 export default function HomePage() {
-  redirect('/tasks');
+  return <AgentOffice />;
 }

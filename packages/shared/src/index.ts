@@ -78,6 +78,106 @@ export type TaskStatus = RunStatus | 'AWAITING_APPROVAL';
 /** The plan agent's name in the dashboard and the office view. */
 export const PLAN_AGENT_NAME = 'Maria Hill';
 
+// ---- Teams and members ----
+
+export type TeamId = 'nextDev' | 'nextEditor' | 'nextDesign' | 'NextMarketer';
+export const TEAM_IDS: readonly TeamId[] = ['nextDev', 'nextEditor', 'nextDesign', 'NextMarketer'];
+
+export type MemberRole =
+  | 'manager'
+  | 'final-qa'
+  | 'intake'
+  | 'command-bot'
+  | 'planner'
+  | 'leader'
+  | 'worker'
+  | 'reference'
+  | 'qa';
+
+export interface TeamMember {
+  /** Stable key; names can change. */
+  id: string;
+  name: string;
+  /** Job title shown under the name. */
+  title: string;
+  role: MemberRole;
+}
+
+export interface Team {
+  id: TeamId;
+  label: string;
+  /** What the team does, in a few words. */
+  focus: string;
+  /** Accent colour for the team's members in the office. */
+  color: string;
+  members: TeamMember[];
+}
+
+/** Agents above the teams. They appear in every team's office. */
+export const LEADERSHIP: TeamMember[] = [
+  { id: 'nick-fury', name: 'Nick Fury', title: 'Manager', role: 'manager' },
+  { id: 'maria-hill', name: PLAN_AGENT_NAME, title: 'Plan agent', role: 'planner' },
+  { id: 'carol-danvers', name: 'Carol Danvers', title: 'Final QA', role: 'final-qa' },
+  { id: 'friday', name: 'Friday', title: 'Intake agent', role: 'intake' },
+  { id: 'jarvis', name: 'Jarvis', title: 'Command bot', role: 'command-bot' },
+];
+
+export const TEAMS: Team[] = [
+  {
+    id: 'nextDev',
+    label: 'nextDev',
+    focus: 'Development',
+    color: '#e0533d',
+    members: [
+      { id: 'tony-stark', name: 'Tony Stark', title: 'Team Leader', role: 'leader' },
+      { id: 'bruce-banner', name: 'Bruce Banner', title: 'Developer', role: 'worker' },
+      { id: 'shuri', name: 'Shuri', title: 'Developer', role: 'worker' },
+      { id: 'peter-parker', name: 'Peter Parker', title: 'Developer', role: 'worker' },
+      { id: 'vision', name: 'Vision', title: 'Team QA', role: 'qa' },
+    ],
+  },
+  {
+    id: 'nextEditor',
+    label: 'nextEditor',
+    focus: 'Video editing',
+    color: '#a855f7',
+    members: [
+      { id: 'stephen-strange', name: 'Stephen Strange', title: 'Team Leader', role: 'leader' },
+      { id: 'wanda-maximoff', name: 'Wanda Maximoff', title: 'Editor', role: 'worker' },
+      { id: 'pietro-maximoff', name: 'Pietro Maximoff', title: 'Editor', role: 'worker' },
+      { id: 'clint-barton', name: 'Clint Barton', title: 'Reference Matcher', role: 'reference' },
+      { id: 'okoye', name: 'Okoye', title: 'Team QA', role: 'qa' },
+    ],
+  },
+  {
+    id: 'nextDesign',
+    label: 'nextDesign',
+    focus: 'Design',
+    color: '#14b8a6',
+    members: [
+      { id: 'hope-van-dyne', name: 'Hope van Dyne', title: 'Team Leader', role: 'leader' },
+      { id: 'scott-lang', name: 'Scott Lang', title: 'UI/UX Designer', role: 'worker' },
+      { id: 'loki', name: 'Loki', title: 'Brand Designer', role: 'worker' },
+      { id: 'mantis', name: 'Mantis', title: 'Reference Matcher', role: 'reference' },
+      { id: 'nebula', name: 'Nebula', title: 'Team QA', role: 'qa' },
+    ],
+  },
+  {
+    id: 'NextMarketer',
+    label: 'NextMarketer',
+    focus: 'Marketing',
+    color: '#f59e0b',
+    members: [
+      { id: 'thor', name: 'Thor', title: 'Team Leader', role: 'leader' },
+      { id: 'natasha-romanoff', name: 'Natasha Romanoff', title: 'Researcher', role: 'worker' },
+      { id: 'peter-quill', name: 'Peter Quill', title: 'Copywriter', role: 'worker' },
+      { id: 'groot', name: 'Groot', title: 'Content Creator', role: 'worker' },
+      { id: 'rocket', name: 'Rocket', title: 'SEO / Ads', role: 'worker' },
+      { id: 'gamora', name: 'Gamora', title: 'Team QA', role: 'qa' },
+    ],
+  },
+];
+
 /**
  * prompt: the instruction you typed · text: what the agent says · tool: a tool call it makes
  * tool_result: what came back · status: progress notes · error: something went wrong · result: the final answer
@@ -104,6 +204,7 @@ export interface TerminalLine extends LogEntry {
 export const MAX_LOG_TEXT = 4_000;
 
 export interface CreateTaskInput {
+  team: TeamId;
   title: string;
   prompt: string;
   deviceId: string;
@@ -113,6 +214,7 @@ export interface CreateTaskInput {
 
 export interface TaskSummary {
   id: string;
+  team: TeamId;
   title: string;
   status: TaskStatus;
   /** Mode of the newest run. */

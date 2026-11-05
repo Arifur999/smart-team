@@ -27,6 +27,13 @@ enum RunStatus {
   CANCELLED
 }
 
+enum Team {
+  nextDev
+  nextEditor
+  nextDesign
+  NextMarketer
+}
+
 /// PLAN runs in Claude Code's read-only plan mode; EXECUTE only starts after you approve a plan.
 enum RunMode {
   PLAN
@@ -74,6 +81,8 @@ model Resource {
 /// What you asked for. Each follow-up instruction (and later, each revision) adds a run.
 model Task {
   id        String   @id @default(uuid(7)) @db.Uuid
+  /// Tasks from before teams existed were all development work, hence the default.
+  team      Team     @default(nextDev)
   title     String
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
@@ -81,6 +90,7 @@ model Task {
   runs Run[]
 
   @@index([createdAt])
+  @@index([team, createdAt])
   @@map("tasks")
 }
 

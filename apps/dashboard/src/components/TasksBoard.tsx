@@ -11,7 +11,7 @@ export function TasksBoard() {
   const [creating, setCreating] = useState(false);
 
   return (
-    <main id="main" className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+    <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Tasks</h1>
@@ -51,7 +51,7 @@ export function TasksBoard() {
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{task.title}</div>
                   <div className="mt-0.5 truncate text-xs text-muted">
-                    {task.deviceName} · <span className="font-mono">{task.workDir}</span>
+                    {task.team} · {task.deviceName} · <span className="font-mono">{task.workDir}</span>
                   </div>
                 </div>
                 <TaskStatusBadge status={task.status} mode={task.mode} />

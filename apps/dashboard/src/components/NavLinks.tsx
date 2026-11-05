@@ -5,9 +5,12 @@ import { usePathname } from 'next/navigation';
 import { Suspense } from 'react';
 
 const LINKS = [
+  { href: '/', label: 'Office' },
   { href: '/tasks', label: 'Tasks' },
   { href: '/devices', label: 'Devices' },
 ];
+
+const isActive = (pathname: string, href: string) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`));
 
 /** Reading the URL needs Suspense under Next 16's prerendering; the fallback is the same links without highlighting. */
 export function NavLinks() {
@@ -20,7 +23,7 @@ export function NavLinks() {
 
 function ActiveNavLinks() {
   const pathname = usePathname();
-  const active = LINKS.find((link) => pathname === link.href || pathname.startsWith(`${link.href}/`))?.href ?? null;
+  const active = LINKS.find((link) => isActive(pathname, link.href))?.href ?? null;
   return <LinkList active={active} />;
 }
 
