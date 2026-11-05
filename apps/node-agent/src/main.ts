@@ -51,7 +51,7 @@ socket.on('connect', async () => {
 socket.on(AgentEvents.runStart, (run: RunStartPayload) => {
   console.log(`Starting ${run.mode.toLowerCase()} run ${run.runId} in ${run.workDir}`);
   runner.start(run, {
-    onLogs: (entries) => socket.emit(AgentEvents.runLog, { runId: run.runId, entries } satisfies RunLogPayload),
+    onLogs: (entries, usage) => socket.emit(AgentEvents.runLog, { runId: run.runId, entries, ...(usage ? { usage } : {}) } satisfies RunLogPayload),
     onFinished: (result) => {
       console.log(`Run ${run.runId} ended: ${result.status}`);
       socket.emit(AgentEvents.runFinished, { runId: run.runId, ...result } satisfies RunFinishedPayload);

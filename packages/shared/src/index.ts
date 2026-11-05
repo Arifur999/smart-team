@@ -117,10 +117,29 @@ export interface Team {
 export const LEADERSHIP: TeamMember[] = [
   { id: 'nick-fury', name: 'Nick Fury', title: 'Manager', role: 'manager' },
   { id: 'maria-hill', name: PLAN_AGENT_NAME, title: 'Plan agent', role: 'planner' },
-  { id: 'carol-danvers', name: 'Carol Danvers', title: 'Final QA', role: 'final-qa' },
+  { id: 'captain-marvel', name: 'Captain Marvel', title: 'Final QA', role: 'final-qa' },
   { id: 'friday', name: 'Friday', title: 'Intake agent', role: 'intake' },
   { id: 'jarvis', name: 'Jarvis', title: 'Command bot', role: 'command-bot' },
 ];
+
+/** The member a run is credited to. Plans go to the plan agent; approved work to the team's first worker until Team Leaders assign work (phase 5). */
+export function runAgentId(team: TeamId, mode: RunMode): string {
+  if (mode === 'PLAN') return 'maria-hill';
+  const members = TEAMS.find((t) => t.id === team)?.members ?? [];
+  return (members.find((m) => m.role === 'worker') ?? members[0])!.id;
+}
+
+/** Time and tokens one member has spent, across all their runs. */
+export interface AgentStats {
+  agentId: string;
+  runs: number;
+  /** Seconds spent in runs, including the one going now. */
+  activeSeconds: number;
+  usage: TokenUsage;
+  costUsd: number;
+  /** When the member's current run started; null when idle. */
+  currentRunStartedAt: string | null;
+}
 
 export const TEAMS: Team[] = [
   {
@@ -129,10 +148,10 @@ export const TEAMS: Team[] = [
     focus: 'Development',
     color: '#e0533d',
     members: [
-      { id: 'tony-stark', name: 'Tony Stark', title: 'Team Leader', role: 'leader' },
-      { id: 'bruce-banner', name: 'Bruce Banner', title: 'Developer', role: 'worker' },
-      { id: 'shuri', name: 'Shuri', title: 'Developer', role: 'worker' },
-      { id: 'peter-parker', name: 'Peter Parker', title: 'Developer', role: 'worker' },
+      { id: 'iron-man', name: 'Iron Man', title: 'Team Leader', role: 'leader' },
+      { id: 'hulk', name: 'Hulk', title: 'Developer', role: 'worker' },
+      { id: 'spider-man', name: 'Spider-Man', title: 'Developer', role: 'worker' },
+      { id: 'black-panther', name: 'Black Panther', title: 'Developer', role: 'worker' },
       { id: 'vision', name: 'Vision', title: 'Team QA', role: 'qa' },
     ],
   },
@@ -142,11 +161,11 @@ export const TEAMS: Team[] = [
     focus: 'Video editing',
     color: '#a855f7',
     members: [
-      { id: 'stephen-strange', name: 'Stephen Strange', title: 'Team Leader', role: 'leader' },
-      { id: 'wanda-maximoff', name: 'Wanda Maximoff', title: 'Editor', role: 'worker' },
-      { id: 'pietro-maximoff', name: 'Pietro Maximoff', title: 'Editor', role: 'worker' },
-      { id: 'clint-barton', name: 'Clint Barton', title: 'Reference Matcher', role: 'reference' },
-      { id: 'okoye', name: 'Okoye', title: 'Team QA', role: 'qa' },
+      { id: 'doctor-strange', name: 'Doctor Strange', title: 'Team Leader', role: 'leader' },
+      { id: 'scarlet-witch', name: 'Scarlet Witch', title: 'Editor', role: 'worker' },
+      { id: 'quicksilver', name: 'Quicksilver', title: 'Editor', role: 'worker' },
+      { id: 'hawkeye', name: 'Hawkeye', title: 'Reference Matcher', role: 'reference' },
+      { id: 'falcon', name: 'Falcon', title: 'Team QA', role: 'qa' },
     ],
   },
   {
@@ -155,8 +174,8 @@ export const TEAMS: Team[] = [
     focus: 'Design',
     color: '#14b8a6',
     members: [
-      { id: 'hope-van-dyne', name: 'Hope van Dyne', title: 'Team Leader', role: 'leader' },
-      { id: 'scott-lang', name: 'Scott Lang', title: 'UI/UX Designer', role: 'worker' },
+      { id: 'wasp', name: 'Wasp', title: 'Team Leader', role: 'leader' },
+      { id: 'ant-man', name: 'Ant-Man', title: 'UI/UX Designer', role: 'worker' },
       { id: 'loki', name: 'Loki', title: 'Brand Designer', role: 'worker' },
       { id: 'mantis', name: 'Mantis', title: 'Reference Matcher', role: 'reference' },
       { id: 'nebula', name: 'Nebula', title: 'Team QA', role: 'qa' },
@@ -169,8 +188,8 @@ export const TEAMS: Team[] = [
     color: '#f59e0b',
     members: [
       { id: 'thor', name: 'Thor', title: 'Team Leader', role: 'leader' },
-      { id: 'natasha-romanoff', name: 'Natasha Romanoff', title: 'Researcher', role: 'worker' },
-      { id: 'peter-quill', name: 'Peter Quill', title: 'Copywriter', role: 'worker' },
+      { id: 'black-widow', name: 'Black Widow', title: 'Researcher', role: 'worker' },
+      { id: 'star-lord', name: 'Star-Lord', title: 'Copywriter', role: 'worker' },
       { id: 'groot', name: 'Groot', title: 'Content Creator', role: 'worker' },
       { id: 'rocket', name: 'Rocket', title: 'SEO / Ads', role: 'worker' },
       { id: 'gamora', name: 'Gamora', title: 'Team QA', role: 'qa' },
@@ -261,9 +280,21 @@ export interface RunCancelPayload {
   runId: string;
 }
 
+/** Tokens one run has used so far. Always a running total, never a delta. */
+export interface TokenUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheCreation: number;
+}
+
+export const totalTokens = (u: TokenUsage) => u.input + u.output + u.cacheRead + u.cacheCreation;
+
 export interface RunLogPayload {
   runId: string;
   entries: LogEntry[];
+  /** Sent when the total changed since the last batch, so the office can show tokens while a run goes. */
+  usage?: TokenUsage;
 }
 
 export interface RunFinishedPayload {
@@ -271,6 +302,7 @@ export interface RunFinishedPayload {
   status: FinishedRunStatus;
   outcome?: string;
   costUsd?: number;
+  usage?: TokenUsage;
   /** Claude Code's session id, so a follow-up can continue the same conversation. */
   sessionId?: string;
 }

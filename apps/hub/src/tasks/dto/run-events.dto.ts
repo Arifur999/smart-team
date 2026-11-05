@@ -6,6 +6,7 @@ import {
   type LogKind,
   type RunFinishedPayload,
   type RunLogPayload,
+  type TokenUsage,
 } from '@smart-team/shared';
 import { Type } from 'class-transformer';
 import {
@@ -42,6 +43,30 @@ export class LogEntryDto implements LogEntry {
   at!: string;
 }
 
+const MAX_TOKENS = 1_000_000_000;
+
+export class TokenUsageDto implements TokenUsage {
+  @IsInt()
+  @Min(0)
+  @Max(MAX_TOKENS)
+  input!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(MAX_TOKENS)
+  output!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(MAX_TOKENS)
+  cacheRead!: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(MAX_TOKENS)
+  cacheCreation!: number;
+}
+
 export class RunLogDto implements RunLogPayload {
   @IsUUID()
   runId!: string;
@@ -51,6 +76,11 @@ export class RunLogDto implements RunLogPayload {
   @ValidateNested({ each: true })
   @Type(() => LogEntryDto)
   entries!: LogEntryDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => TokenUsageDto)
+  usage?: TokenUsageDto;
 }
 
 export class RunFinishedDto implements RunFinishedPayload {
@@ -75,4 +105,9 @@ export class RunFinishedDto implements RunFinishedPayload {
   @IsString()
   @MaxLength(100)
   sessionId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => TokenUsageDto)
+  usage?: TokenUsageDto;
 }

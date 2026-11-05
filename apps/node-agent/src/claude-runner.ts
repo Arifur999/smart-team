@@ -6,6 +6,7 @@ import {
   type LogKind,
   type RunFinishedPayload,
   type RunStartPayload,
+  type TokenUsage,
 } from '@smart-team/shared';
 import { parseStreamLine, type FinalResult } from './claude-stream.js';
 import type { ClaudeConfig } from './config.js';
@@ -22,7 +23,8 @@ const FLUSH_MS = 250;
 const STDERR_KEEP = 2_000;
 
 export interface RunCallbacks {
-  onLogs(entries: LogEntry[]): void;
+  /** `usage` is the run's token total, sent only when it changed. */
+  onLogs(entries: LogEntry[], usage?: TokenUsage): void;
   onFinished(result: Omit<RunFinishedPayload, 'runId'>): void;
 }
 
@@ -73,11 +75,13 @@ export class ClaudeRunner {
     let final: FinalResult | undefined;
     let sessionId: string | undefined;
     let stderrTail = '';
+    const tokens = new UsageTally();
 
     const push = (kind: LogKind, text: string) => pending.push({ seq: seq++, kind, text, at: now() });
     const flush = () => {
-      if (pending.length === 0) return;
-      callbacks.onLogs(pending);
+      const usage = tokens.takeIfChanged();
+      if (pending.length === 0 && !usage) return;
+      callbacks.onLogs(pending, usage);
       pending = [];
     };
     const timer = setInterval(flush, FLUSH_MS);
@@ -86,6 +90,7 @@ export class ClaudeRunner {
       sessionId ??= readSessionId(line);
       const parsed = parseStreamLine(line);
       for (const l of parsed.lines) push(l.kind, l.text);
+      if (parsed.messageUsage) tokens.record(parsed.messageUsage.messageId, parsed.messageUsage.usage);
       if (parsed.final) final = parsed.final;
     });
     child.stderr!.on('data', (chunk: Buffer) => {
@@ -104,7 +109,14 @@ export class ClaudeRunner {
       if (result.status !== 'SUCCEEDED' && result.outcome && !final) push('error', result.outcome);
       flush();
       if (this.current === state) this.current = undefined;
-      callbacks.onFinished({ ...result, ...(sessionId ? { sessionId } : {}), ...(final?.costUsd !== undefined ? { costUsd: final.costUsd } : {}) });
+      // Claude's own total wins; a cancelled run has none, so fall back to what was counted live.
+      const usage = final?.usage ?? tokens.total();
+      callbacks.onFinished({
+        ...result,
+        usage,
+        ...(sessionId ? { sessionId } : {}),
+        ...(final?.costUsd !== undefined ? { costUsd: final.costUsd } : {}),
+      });
     };
 
     child.on('error', (error) => finish(null, error));
@@ -133,6 +145,40 @@ export function outcomeOf(input: {
   if (input.final) return { status: input.final.isError ? 'FAILED' : 'SUCCEEDED', outcome: input.final.text };
   const stderr = input.stderrTail.trim();
   return { status: 'FAILED', outcome: stderr || `Claude Code exited with code ${input.exitCode ?? 'unknown'} before finishing.` };
+}
+
+/**
+ * Adds up tokens per API message. Claude repeats a message's usage on every content block it streams,
+ * so the latest value per message id replaces the earlier one instead of being added again.
+ */
+export class UsageTally {
+  private readonly byMessage = new Map<string, TokenUsage>();
+  private lastSent = '';
+
+  record(messageId: string, usage: TokenUsage) {
+    this.byMessage.set(messageId, usage);
+  }
+
+  total(): TokenUsage {
+    const sum: TokenUsage = { input: 0, output: 0, cacheRead: 0, cacheCreation: 0 };
+    for (const u of this.byMessage.values()) {
+      sum.input += u.input;
+      sum.output += u.output;
+      sum.cacheRead += u.cacheRead;
+      sum.cacheCreation += u.cacheCreation;
+    }
+    return sum;
+  }
+
+  /** The total if it changed since the last call, otherwise undefined. */
+  takeIfChanged(): TokenUsage | undefined {
+    if (this.byMessage.size === 0) return undefined;
+    const total = this.total();
+    const key = JSON.stringify(total);
+    if (key === this.lastSent) return undefined;
+    this.lastSent = key;
+    return total;
+  }
 }
 
 function readSessionId(line: string): string | undefined {

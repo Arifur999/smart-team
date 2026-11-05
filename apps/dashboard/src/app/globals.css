@@ -76,11 +76,37 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Agents that are working bob gently on the office map. */
-@keyframes bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
+/* Office characters (CharacterSprite). Each part rotates around its joint. */
+.sprite .leg-l { transform-origin: 16.5px 40px; }
+.sprite .leg-r { transform-origin: 23.5px 40px; }
+.sprite .arm-l { transform-origin: 9.7px 29.5px; }
+.sprite .arm-r { transform-origin: 30.3px 29.5px; }
+.sprite .head { transform-origin: 20px 26px; }
+
+@keyframes leg-swing { from { transform: rotate(-22deg); } to { transform: rotate(22deg); } }
+@keyframes arm-swing { from { transform: rotate(18deg); } to { transform: rotate(-18deg); } }
+/* Arms reach in towards the keyboard: the left arm turns anticlockwise, the right one clockwise. */
+@keyframes typing-l { 0%, 100% { transform: rotate(-38deg); } 50% { transform: rotate(-28deg); } }
+@keyframes typing-r { 0%, 100% { transform: rotate(38deg); } 50% { transform: rotate(28deg); } }
+@keyframes nod { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(3deg); } }
+@keyframes breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(0.6px); } }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes zzz { 0% { opacity: 0; transform: translate(0, 0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(6px, -12px); } }
+@keyframes screen-flicker { 0%, 100% { opacity: 0.9; } 50% { opacity: 0.65; } }
+@keyframes led { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+
+.sprite-walk .leg-l { animation: leg-swing 0.32s ease-in-out infinite alternate; }
+.sprite-walk .leg-r { animation: leg-swing 0.32s ease-in-out infinite alternate-reverse; }
+.sprite-walk .arm-l { animation: arm-swing 0.32s ease-in-out infinite alternate-reverse; }
+.sprite-walk .arm-r { animation: arm-swing 0.32s ease-in-out infinite alternate; }
+.sprite-type .arm-l { animation: typing-l 0.28s ease-in-out infinite; }
+.sprite-type .arm-r { animation: typing-r 0.28s ease-in-out infinite 0.14s; }
+.sprite-type .head { animation: nod 2.4s ease-in-out infinite; }
+.sprite-stand .head, .sprite-sleep .head { animation: breathe 3s ease-in-out infinite; }
+.sprite .eye { transform-box: fill-box; transform-origin: center; animation: blink 4.5s infinite; }
+.zzz { animation: zzz 2.4s ease-out infinite; }
+.screen { animation: screen-flicker 3s ease-in-out infinite; }
+.led { animation: led 1.6s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

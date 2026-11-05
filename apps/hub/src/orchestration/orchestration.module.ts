@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DevicesModule } from '../devices/devices.module.js';
+import { AgentStatsController } from '../tasks/agent-stats.controller.js';
 import { TasksController } from '../tasks/tasks.controller.js';
 import { TasksService } from '../tasks/tasks.service.js';
 import { AgentRegistry } from './agent-registry.js';
@@ -14,7 +15,7 @@ import { RunDispatcher } from './run-dispatcher.js';
  */
 @Module({
   imports: [DevicesModule],
-  controllers: [TasksController],
+  controllers: [TasksController, AgentStatsController],
   providers: [TasksService, AgentRegistry, DashboardGateway, AgentsGateway, DevicesSweeper, RunDispatcher],
 })
 export class OrchestrationModule {}

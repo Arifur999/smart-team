@@ -1,6 +1,8 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   FIRST_AGENT_SEQ,
+  runAgentId,
+  type AgentStats,
   type CreateTaskInput,
   type FinishedRunStatus,
   type LogEntry,
@@ -9,6 +11,8 @@ import {
   type TaskDetail,
   type TaskStatus,
   type TaskSummary,
+  type TeamId,
+  type TokenUsage,
 } from '@smart-team/shared';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -27,6 +31,7 @@ const RUN_SELECT = {
   startedAt: true,
   finishedAt: true,
   device: { select: { name: true } },
+  task: { select: { team: true } },
 } satisfies Prisma.RunSelect;
 
 const TASK_SELECT = {
@@ -61,7 +66,7 @@ export class TasksService {
   /** Every task starts with a plan run; nothing on the PC changes until you approve it. */
   async create(input: CreateTaskInput): Promise<TaskSummary> {
     const task = await this.prisma.task.create({ data: { team: input.team, title: input.title }, select: { id: true } });
-    await this.addRun(task.id, { deviceId: input.deviceId, workDir: input.workDir, prompt: input.prompt, mode: 'PLAN' });
+    await this.addRun(task.id, { team: input.team, deviceId: input.deviceId, workDir: input.workDir, prompt: input.prompt, mode: 'PLAN' });
     return this.summary(task.id);
   }
 
@@ -160,10 +165,15 @@ export class TasksService {
     });
   }
 
+  /** Stores a run's running token total while it goes. */
+  async updateUsage(runId: string, usage: TokenUsage): Promise<void> {
+    await this.prisma.run.updateMany({ where: { id: runId, status: 'RUNNING' }, data: tokenColumns(usage) });
+  }
+
   /** Ends a run that is still queued or running. Returns false when it had already ended. */
   async finish(
     runId: string,
-    result: { status: FinishedRunStatus; outcome?: string; costUsd?: number; sessionId?: string },
+    result: { status: FinishedRunStatus; outcome?: string; costUsd?: number; sessionId?: string; usage?: TokenUsage },
     now = new Date(),
   ): Promise<boolean> {
     const { count } = await this.prisma.run.updateMany({
@@ -174,9 +184,48 @@ export class TasksService {
         costUsd: result.costUsd ?? null,
         finishedAt: now,
         ...(result.sessionId ? { sessionId: result.sessionId } : {}),
+        ...(result.usage ? tokenColumns(result.usage) : {}),
       },
     });
     return count > 0;
+  }
+
+  /** Time, tokens and cost per team member, over all their runs. Members without runs are left out. */
+  async agentStats(now = new Date()): Promise<AgentStats[]> {
+    const rows = await this.prisma.$queryRaw<
+      {
+        agentId: string;
+        runs: bigint;
+        activeSeconds: number | null;
+        input: bigint;
+        output: bigint;
+        cacheRead: bigint;
+        cacheCreation: bigint;
+        costUsd: Prisma.Decimal | null;
+        currentRunStartedAt: Date | null;
+      }[]
+    >`
+      SELECT "agentId",
+             count(*) AS runs,
+             sum(extract(epoch FROM coalesce("finishedAt", ${now}) - "startedAt"))::float8 AS "activeSeconds",
+             sum("inputTokens") AS input,
+             sum("outputTokens") AS output,
+             sum("cacheReadTokens") AS "cacheRead",
+             sum("cacheCreationTokens") AS "cacheCreation",
+             sum("costUsd") AS "costUsd",
+             max("startedAt") FILTER (WHERE status = 'RUNNING') AS "currentRunStartedAt"
+        FROM runs
+       WHERE "agentId" IS NOT NULL AND "startedAt" IS NOT NULL
+       GROUP BY "agentId"`;
+
+    return rows.map((r) => ({
+      agentId: r.agentId,
+      runs: Number(r.runs),
+      activeSeconds: Math.round(r.activeSeconds ?? 0),
+      usage: { input: Number(r.input), output: Number(r.output), cacheRead: Number(r.cacheRead), cacheCreation: Number(r.cacheCreation) },
+      costUsd: r.costUsd === null ? 0 : Number(r.costUsd),
+      currentRunStartedAt: r.currentRunStartedAt?.toISOString() ?? null,
+    }));
   }
 
   /** Fails every run the device was in the middle of. Returns the affected task ids. */
@@ -191,8 +240,8 @@ export class TasksService {
     return running.map((r) => r.taskId);
   }
 
-  /** Queues a run and writes its instruction as the first terminal line. */
-  private async addRun(taskId: string, run: { deviceId: string; workDir: string; prompt: string; mode: RunMode }) {
+  /** Queues a run, credits it to a team member and writes its instruction as the first terminal line. */
+  private async addRun(taskId: string, run: { team: TeamId; deviceId: string; workDir: string; prompt: string; mode: RunMode }) {
     await this.prisma.run.create({
       data: {
         taskId,
@@ -200,6 +249,7 @@ export class TasksService {
         workDir: run.workDir,
         prompt: run.prompt,
         mode: run.mode,
+        agentId: runAgentId(run.team, run.mode),
         logs: { create: { seq: 0, kind: 'prompt', text: run.prompt, at: new Date() } },
       },
       select: { id: true },
@@ -208,7 +258,11 @@ export class TasksService {
 }
 
 function continueFrom(run: RunRow) {
-  return { deviceId: run.deviceId, workDir: run.workDir };
+  return { team: run.task.team, deviceId: run.deviceId, workDir: run.workDir };
+}
+
+function tokenColumns(u: TokenUsage) {
+  return { inputTokens: u.input, outputTokens: u.output, cacheReadTokens: u.cacheRead, cacheCreationTokens: u.cacheCreation };
 }
 
 function isFinished(status: TaskStatus): boolean {

@@ -49,7 +49,9 @@ export class RunDispatcher {
 
   async onLogs(deviceId: string, payload: RunLogPayload): Promise<void> {
     const taskId = await this.tasks.taskIdOfOwnedRun(payload.runId, deviceId);
-    if (!taskId || payload.entries.length === 0) return;
+    if (!taskId) return;
+    if (payload.usage) await this.tasks.updateUsage(payload.runId, payload.usage);
+    if (payload.entries.length === 0) return;
     await this.tasks.appendLogs(payload.runId, payload.entries);
     this.dashboard.pushLogs({ taskId, lines: payload.entries.map((e) => ({ ...e, runId: payload.runId })) });
   }

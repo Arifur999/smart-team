@@ -40,11 +40,35 @@ describe('parseStreamLine', () => {
     ).toEqual([{ kind: 'error', text: 'boom' }]);
   });
 
-  it('returns the final result with its cost', () => {
+  it('reads token usage from assistant messages', () => {
     const parsed = parseStreamLine(
-      line({ type: 'result', subtype: 'success', is_error: false, result: 'All done.', total_cost_usd: 0.2, duration_ms: 12_400, num_turns: 3 }),
+      line({
+        type: 'assistant',
+        message: { id: 'msg_1', content: [], usage: { input_tokens: 2, output_tokens: 40, cache_read_input_tokens: 900, cache_creation_input_tokens: 100 } },
+      }),
     );
-    expect(parsed.final).toEqual({ isError: false, text: 'All done.', costUsd: 0.2 });
+    expect(parsed.messageUsage).toEqual({ messageId: 'msg_1', usage: { input: 2, output: 40, cacheRead: 900, cacheCreation: 100 } });
+  });
+
+  it('returns the final result with its cost and usage', () => {
+    const parsed = parseStreamLine(
+      line({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: 'All done.',
+        total_cost_usd: 0.2,
+        duration_ms: 12_400,
+        num_turns: 3,
+        usage: { input_tokens: 10, output_tokens: 125, cache_read_input_tokens: 51679, cache_creation_input_tokens: 17795 },
+      }),
+    );
+    expect(parsed.final).toEqual({
+      isError: false,
+      text: 'All done.',
+      costUsd: 0.2,
+      usage: { input: 10, output: 125, cacheRead: 51679, cacheCreation: 17795 },
+    });
     // The answer itself is already in the log as Claude's last message, so only a summary line is added.
     expect(parsed.lines).toEqual([{ kind: 'result', text: 'Finished in 12s · 3 turns · $0.20' }]);
   });

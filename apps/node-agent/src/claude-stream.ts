@@ -1,4 +1,4 @@
-import { MAX_LOG_TEXT, type LogKind } from '@smart-team/shared';
+import { MAX_LOG_TEXT, type LogKind, type TokenUsage } from '@smart-team/shared';
 
 export interface ParsedLine {
   kind: LogKind;
@@ -9,11 +9,28 @@ export interface FinalResult {
   isError: boolean;
   text: string;
   costUsd?: number;
+  /** The session's token total, when Claude reports it. */
+  usage?: TokenUsage;
 }
 
 export interface ParsedEvent {
   lines: ParsedLine[];
   final?: FinalResult;
+  /** Tokens of one API message. The same message can arrive several times; keep the latest per id. */
+  messageUsage?: { messageId: string; usage: TokenUsage };
+}
+
+/** Reads Claude's usage object; null when it is missing. */
+export function readUsage(raw: unknown): TokenUsage | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const u = raw as Record<string, unknown>;
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.round(v) : 0);
+  return {
+    input: n(u.input_tokens),
+    output: n(u.output_tokens),
+    cacheRead: n(u.cache_read_input_tokens),
+    cacheCreation: n(u.cache_creation_input_tokens),
+  };
 }
 
 /** Turns one line of `claude -p --output-format stream-json` into readable log lines. */
@@ -35,8 +52,14 @@ export function parseStreamLine(raw: string): ParsedEvent {
       }
       return { lines: [] };
 
-    case 'assistant':
-      return { lines: contentParts(event.message?.content).flatMap(assistantPart) };
+    case 'assistant': {
+      const usage = readUsage(event.message?.usage);
+      const messageId = event.message?.id;
+      return {
+        lines: contentParts(event.message?.content).flatMap(assistantPart),
+        ...(usage && typeof messageId === 'string' ? { messageUsage: { messageId, usage } } : {}),
+      };
+    }
 
     case 'user':
       return { lines: contentParts(event.message?.content).flatMap(toolResultPart) };
@@ -52,7 +75,12 @@ export function parseStreamLine(raw: string): ParsedEvent {
       // On success the result repeats Claude's last message, which is already in the log.
       return {
         lines: [isError ? { kind: 'error', text: clip(text) } : { kind: 'result', text: finishedLine(event) }],
-        final: { isError, text, ...(typeof event.total_cost_usd === 'number' ? { costUsd: event.total_cost_usd } : {}) },
+        final: {
+          isError,
+          text,
+          ...(typeof event.total_cost_usd === 'number' ? { costUsd: event.total_cost_usd } : {}),
+          ...(readUsage(event.usage) ? { usage: readUsage(event.usage)! } : {}),
+        },
       };
     }
 
