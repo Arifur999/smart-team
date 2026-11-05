@@ -5,6 +5,8 @@ const LINES = {
   supervising: ['On it, chief!', 'Keeping an eye on it.', 'Looks good so far.', 'Got this.'],
   working: ['Working it now.', 'Writing the code.', 'Almost there.', 'Running the checks.', 'Capturing it.'],
   waiting: ['Plan ready for you.', 'Waiting on your OK.', 'Your call, boss.'],
+  briefing: ['Reading your brief.', 'Any gaps here?', 'Checking the files.'],
+  asking: ['Got a question for you.', 'Need a few details.', 'Your turn.'],
   queued: ['Next up.', 'Ready when the PC is.'],
   idle: ['Coffee break.', 'Ready for work.', 'Anything for me?'],
 } as const;
@@ -25,8 +27,12 @@ export function speechFor(member: OfficeMember, tick: number): string | null {
   const pick = (lines: readonly string[]) => lines[(tick + hash(member.id)) % lines.length]!;
 
   if (activity.tone === 'off') return null;
-  if (activity.tone === 'waiting') return pick(activity.label === 'Queued' ? LINES.queued : LINES.waiting);
+  if (activity.tone === 'waiting') {
+    if (member.role === 'intake') return pick(LINES.asking);
+    return pick(activity.label === 'Queued' ? LINES.queued : LINES.waiting);
+  }
   if (activity.tone === 'busy') {
+    if (member.role === 'intake') return pick(LINES.briefing);
     if (member.role === 'planner') return pick(LINES.planning);
     if (member.role === 'leader') return pick(LINES.supervising);
     return pick(LINES.working);

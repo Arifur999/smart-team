@@ -1,10 +1,11 @@
 'use client';
 
-import { PLAN_AGENT_NAME, type TaskDetail } from '@smart-team/shared';
+import { INTAKE_AGENT_NAME, PLAN_AGENT_NAME, type TaskDetail } from '@smart-team/shared';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useTask } from '@/hooks/useTask';
 import { api } from '@/lib/api';
+import { IntakeChat } from './intake/IntakeChat';
 import { TaskStatusBadge } from './TaskStatusBadge';
 import { Terminal } from './Terminal';
 
@@ -48,16 +49,33 @@ export function TaskView({ taskId }: { taskId: string }) {
         </p>
       )}
 
-      {/* Fixed to the screen height so the terminal scrolls inside itself, like a real one. */}
-      <div className="mt-4 flex h-[calc(100dvh-13rem)] min-h-[420px] flex-col">
-        <Terminal
-          title={`${task.deviceName} — ${task.workDir}`}
-          lines={task.lines}
-          inputEnabled={task.canFollowUp}
-          inputHint={inputHint(task)}
-          onSend={(text) => api.followUp(task.id, text)}
-        />
-      </div>
+      {task.status === 'INTAKE' ? (
+        <>
+          {/* During intake the task page is the brief chat; the brief check's log stays one click away. */}
+          <div className="mt-4 flex h-[calc(100dvh-13rem)] min-h-[520px] flex-col">
+            <IntakeChat taskId={task.id} />
+          </div>
+          {task.lines.length > 0 && (
+            <details className="mt-4">
+              <summary className="cursor-pointer text-sm text-muted hover:text-foreground">{INTAKE_AGENT_NAME}’s brief check log</summary>
+              <div className="mt-2 flex h-80 flex-col">
+                <Terminal title="Brief check" lines={task.lines} inputEnabled={false} inputHint="Read-only" onSend={async () => {}} />
+              </div>
+            </details>
+          )}
+        </>
+      ) : (
+        // Fixed to the screen height so the terminal scrolls inside itself, like a real one.
+        <div className="mt-4 flex h-[calc(100dvh-13rem)] min-h-[420px] flex-col">
+          <Terminal
+            title={`${task.deviceName} — ${task.workDir}`}
+            lines={task.lines}
+            inputEnabled={task.canFollowUp}
+            inputHint={inputHint(task)}
+            onSend={(text) => api.followUp(task.id, text)}
+          />
+        </div>
+      )}
     </main>
   );
 }
@@ -65,7 +83,8 @@ export function TaskView({ taskId }: { taskId: string }) {
 function TaskActions({ task }: { task: TaskDetail }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const running = task.status === 'RUNNING' || task.status === 'QUEUED';
+  // A task in intake can be cancelled too: nothing has been planned or changed yet.
+  const running = task.status === 'RUNNING' || task.status === 'QUEUED' || task.status === 'INTAKE';
 
   async function act(action: () => Promise<void>) {
     setBusy(true);

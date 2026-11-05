@@ -34,10 +34,32 @@ enum Team {
   NextMarketer
 }
 
-/// PLAN runs in Claude Code's read-only plan mode; EXECUTE only starts after you approve a plan.
+/// INTAKE checks the brief and PLAN plans, both read-only; EXECUTE only starts after you approve a plan.
 enum RunMode {
+  INTAKE
   PLAN
   EXECUTE
+}
+
+/// Where the intake for a task stands. LOCKED means the brief is confirmed and planning started.
+enum IntakePhase {
+  ASKING
+  REVIEWING
+  CLARIFYING
+  READY
+  LOCKED
+}
+
+enum Speaker {
+  FRIDAY
+  YOU
+}
+
+/// UPLOAD: stored on the hub. PATH: a file or folder on one of the PCs. LINK: a URL.
+enum AssetKind {
+  UPLOAD
+  PATH
+  LINK
 }
 
 /// One PC running the node agent. `name` is the agent's stable identity across reconnects.
@@ -55,6 +77,8 @@ model Device {
 
   resources Resource[]
   runs      Run[]
+  tasks     Task[]
+  assets    Asset[]
 
   @@index([status, lastSeenAt])
   @@map("devices")
@@ -84,14 +108,85 @@ model Task {
   /// Tasks from before teams existed were all development work, hence the default.
   team      Team     @default(nextDev)
   title     String
+  /// Where the task runs. Set at creation, before any run exists; older tasks were backfilled from their first run.
+  deviceId  String?  @db.Uuid
+  workDir   String?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  runs Run[]
+  device   Device?         @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  runs     Run[]
+  brief    Brief?
+  messages IntakeMessage[]
+  assets   Asset[]
 
   @@index([createdAt])
   @@index([team, createdAt])
+  @@index([deviceId])
   @@map("tasks")
+}
+
+/// What the intake agent collected. Tasks from before intake existed have no brief.
+model Brief {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  taskId         String      @unique @db.Uuid
+  phase          IntakePhase @default(ASKING)
+  /// Field id -> typed answer.
+  answers        Json        @default("{}")
+  /// Optional fields you chose to skip.
+  skipped        String[]    @default([])
+  /// The field the intake agent is asking about now.
+  currentFieldId String?
+  /// Clear brief written by the review, handed to the planner once confirmed.
+  summary        String?
+  reviewRounds   Int         @default(0)
+  lockedAt       DateTime?   @db.Timestamptz(3)
+  createdAt      DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(3)
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("briefs")
+}
+
+/// One line of the intake chat.
+model IntakeMessage {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  taskId    String   @db.Uuid
+  speaker   Speaker
+  text      String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@map("intake_messages")
+}
+
+/// A file given for a brief field.
+model Asset {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  taskId     String    @db.Uuid
+  fieldId    String
+  kind       AssetKind
+  name       String
+  tag        String?
+  /// PATH: the file or folder on `device`.
+  path       String?
+  deviceId   String?   @db.Uuid
+  url        String?
+  /// UPLOAD: file name inside the hub's upload folder.
+  storageKey String?
+  size       BigInt?
+  mime       String?
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  task   Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, fieldId])
+  @@index([deviceId])
+  @@map("assets")
 }
 
 /// One Claude Code session on one PC. A device runs one at a time; the rest wait as QUEUED.

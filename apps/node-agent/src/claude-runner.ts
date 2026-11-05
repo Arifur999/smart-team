@@ -19,6 +19,12 @@ const PLAN_SYSTEM_PROMPT = [
   'The plan is approved by a person in a dashboard, not through ExitPlanMode.',
 ].join(' ');
 
+/** Added to the intake agent's brief check: read-only, and the answer must be the JSON the hub asked for. */
+const INTAKE_SYSTEM_PROMPT = [
+  'You are the intake agent of a team. You only review briefs; you never plan, do the work or change anything.',
+  'Your final reply must be exactly the JSON object the user message asks for, with no text before or after it.',
+].join(' ');
+
 const FLUSH_MS = 250;
 const STDERR_KEEP = 2_000;
 
@@ -31,15 +37,27 @@ export interface RunCallbacks {
 export interface RunOptions {
   /** A plugin folder with the run's skills, from SkillCache. */
   pluginDir?: string;
+  /** Extra folders Claude may read: the brief's files, from AssetCache. */
+  addDirs?: string[];
+  /** Appended to the prompt, e.g. where the brief's files are on this PC. */
+  promptSuffix?: string;
   /** Lines shown in the terminal before Claude starts, e.g. which skills were loaded. */
   notes?: string[];
 }
 
 /** Builds the Claude Code command line for one run. The prompt goes over stdin, never on the command line. */
-export function buildClaudeArgs(run: Pick<RunStartPayload, 'mode' | 'resumeSessionId'>, claude: ClaudeConfig, pluginDir?: string): string[] {
+export function buildClaudeArgs(
+  run: Pick<RunStartPayload, 'mode' | 'resumeSessionId'>,
+  claude: ClaudeConfig,
+  pluginDir?: string,
+  addDirs: string[] = [],
+): string[] {
   const args = ['-p', '--output-format', 'stream-json', '--verbose'];
   if (pluginDir) args.push('--plugin-dir', pluginDir);
-  if (run.mode === 'PLAN') {
+  for (const dir of addDirs) args.push('--add-dir', dir);
+  if (run.mode === 'INTAKE') {
+    args.push('--permission-mode', 'plan', '--append-system-prompt', INTAKE_SYSTEM_PROMPT);
+  } else if (run.mode === 'PLAN') {
     args.push('--permission-mode', 'plan', '--append-system-prompt', PLAN_SYSTEM_PROMPT);
   } else {
     args.push('--permission-mode', claude.permissionMode);
@@ -75,7 +93,7 @@ export class ClaudeRunner {
     const cwd = resolveAllowedDir(run.workDir, this.sharedFolders());
     if (!cwd) return reject(`The folder ${run.workDir} is not shared on this PC, or does not exist.`);
 
-    const child = spawn(this.claude.command, buildClaudeArgs(run, this.claude, options.pluginDir), {
+    const child = spawn(this.claude.command, buildClaudeArgs(run, this.claude, options.pluginDir, options.addDirs), {
       cwd,
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -110,7 +128,7 @@ export class ClaudeRunner {
       stderrTail = (stderrTail + chunk.toString()).slice(-STDERR_KEEP);
     });
 
-    child.stdin!.end(run.prompt);
+    child.stdin!.end(options.promptSuffix ? `${run.prompt}\n${options.promptSuffix}` : run.prompt);
 
     let done = false;
     const finish = (exitCode: number | null, spawnError?: Error) => {

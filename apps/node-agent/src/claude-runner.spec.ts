@@ -12,6 +12,13 @@ describe('buildClaudeArgs', () => {
     expect(args).not.toContain('--allowedTools');
   });
 
+  it('runs the brief check read-only and opens the brief folders', () => {
+    const args = buildClaudeArgs({ mode: 'INTAKE' }, claude, undefined, ['D:\\refs', 'C:\\cache\\assets\\a1']);
+    expect(args.slice(args.indexOf('--permission-mode'), args.indexOf('--permission-mode') + 2)).toEqual(['--permission-mode', 'plan']);
+    expect(args).toEqual(expect.arrayContaining(['--add-dir', 'D:\\refs', '--add-dir', 'C:\\cache\\assets\\a1']));
+    expect(args).not.toContain('--allowedTools');
+  });
+
   it('loads the run skills through a plugin folder when there is one', () => {
     expect(buildClaudeArgs({ mode: 'PLAN' }, claude, 'C:\\cache\\runs\\r1')).toEqual(expect.arrayContaining(['--plugin-dir', 'C:\\cache\\runs\\r1']));
     expect(buildClaudeArgs({ mode: 'PLAN' }, claude)).not.toContain('--plugin-dir');

@@ -1,8 +1,8 @@
 import type { TaskSummary } from '@smart-team/shared';
 
-/** The stages a task goes through. Brief, Review and Ship are greyed out until their phases are built. */
+/** The stages a task goes through. Review and Ship are greyed out until their phases are built. */
 const STEPS = [
-  { id: 'brief', label: 'Brief', built: false },
+  { id: 'brief', label: 'Brief', built: true },
   { id: 'plan', label: 'Plan', built: true },
   { id: 'approve', label: 'Approve', built: true },
   { id: 'build', label: 'Build', built: true },
@@ -12,6 +12,7 @@ const STEPS = [
 
 function currentStep(task: TaskSummary | undefined): string | null {
   if (!task) return null;
+  if (task.status === 'INTAKE') return 'brief';
   if (task.status === 'AWAITING_APPROVAL') return 'approve';
   if (task.mode === 'PLAN') return 'plan';
   if (task.status === 'SUCCEEDED') return 'ship';

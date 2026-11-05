@@ -9,6 +9,10 @@ const envSchema = z.object({
   DASHBOARD_ORIGIN: z.string().default('http://localhost:3000'),
   /** The repo's skill-packs folder: manifest.json plus skills written for smart-team. */
   SKILL_PACKS_DIR: z.string().default(resolve(process.cwd(), '../../skill-packs')),
+  /** Where files uploaded through the intake chat are stored on the hub PC. */
+  UPLOAD_DIR: z.string().default(resolve(process.cwd(), 'uploads')),
+  /** Largest single upload, in megabytes. Raw footage can be big. */
+  MAX_UPLOAD_MB: z.coerce.number().int().positive().default(4096),
   /** More folders of Claude Code skills on the hub PC, separated by the OS path delimiter (";" on Windows). */
   SKILL_DIRS: z
     .string()

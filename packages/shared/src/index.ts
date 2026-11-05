@@ -69,11 +69,20 @@ export type FinishedRunStatus = Extract<RunStatus, 'SUCCEEDED' | 'FAILED' | 'CAN
 
 export const FINISHED_STATUSES: readonly RunStatus[] = ['SUCCEEDED', 'FAILED', 'CANCELLED'];
 
-/** PLAN: read-only planning in Claude Code's plan mode. EXECUTE: doing the approved work. */
-export type RunMode = 'PLAN' | 'EXECUTE';
+/**
+ * INTAKE: the intake agent checks the brief, read-only. PLAN: read-only planning in Claude Code's plan mode.
+ * EXECUTE: doing the approved work.
+ */
+export type RunMode = 'INTAKE' | 'PLAN' | 'EXECUTE';
 
-/** A finished plan run becomes AWAITING_APPROVAL: nothing changes on the PC until you approve. */
-export type TaskStatus = RunStatus | 'AWAITING_APPROVAL';
+/**
+ * INTAKE: the brief is still being collected or checked; nothing is planned yet.
+ * A finished plan run becomes AWAITING_APPROVAL: nothing changes on the PC until you approve.
+ */
+export type TaskStatus = 'INTAKE' | RunStatus | 'AWAITING_APPROVAL';
+
+/** The intake agent's name in the dashboard and the office view. */
+export const INTAKE_AGENT_NAME = 'Friday';
 
 /** The plan agent's name in the dashboard and the office view. */
 export const PLAN_AGENT_NAME = 'Maria Hill';
@@ -124,6 +133,7 @@ export const LEADERSHIP: TeamMember[] = [
 
 /** The member a run is credited to. Plans go to the plan agent; approved work to the team's first worker until Team Leaders assign work (phase 5). */
 export function runAgentId(team: TeamId, mode: RunMode): string {
+  if (mode === 'INTAKE') return 'friday';
   if (mode === 'PLAN') return 'maria-hill';
   const members = TEAMS.find((t) => t.id === team)?.members ?? [];
   return (members.find((m) => m.role === 'worker') ?? members[0])!.id;
@@ -236,8 +246,10 @@ export interface TaskSummary {
   team: TeamId;
   title: string;
   status: TaskStatus;
-  /** Mode of the newest run. */
+  /** Mode of the newest run; INTAKE before any run exists. */
   mode: RunMode;
+  /** Where the brief stands; null for tasks from before intake existed. */
+  intakePhase: IntakePhase | null;
   deviceId: string;
   deviceName: string;
   workDir: string;
@@ -293,6 +305,157 @@ export function skillRoleKey(team: TeamId | null, role: MemberRole): string {
   return role === 'planner' || !team ? role : `${team}.${role}`;
 }
 
+// ---- Intake: briefs, files and Friday's questions ----
+
+/**
+ * text / longtext: a typed answer. files: uploads, folders on a PC or links, with an optional note.
+ * The tag is attached to every file given for the field, so team leaders can route work by it.
+ */
+export interface IntakeField {
+  id: string;
+  label: string;
+  /** How Friday asks for it. */
+  question: string;
+  kind: 'text' | 'longtext' | 'files';
+  required: boolean;
+  tag?: string;
+}
+
+export type AssetKind = 'UPLOAD' | 'PATH' | 'LINK';
+
+export interface AssetView {
+  id: string;
+  fieldId: string;
+  kind: AssetKind;
+  name: string;
+  tag: string | null;
+  /** PATH: the folder or file on that PC. */
+  path: string | null;
+  deviceId: string | null;
+  deviceName: string | null;
+  /** LINK only. */
+  url: string | null;
+  size: number | null;
+}
+
+export interface IntakeMessageView {
+  id: string;
+  from: 'FRIDAY' | 'YOU';
+  text: string;
+  at: string;
+}
+
+/**
+ * ASKING: Friday is going through the template. REVIEWING: Claude is checking the brief.
+ * CLARIFYING: Friday asked follow-up questions. READY: summary shown, waiting for you to confirm.
+ * LOCKED: confirmed; planning has started.
+ */
+export type IntakePhase = 'ASKING' | 'REVIEWING' | 'CLARIFYING' | 'READY' | 'LOCKED';
+
+export interface IntakeView {
+  taskId: string;
+  phase: IntakePhase;
+  fields: (IntakeField & { answer: string | null; skipped: boolean; assets: AssetView[] })[];
+  /** The field Friday is asking about now; null when not asking. */
+  currentFieldId: string | null;
+  messages: IntakeMessageView[];
+  /** The brief Friday will hand to the planner, once checked. */
+  summary: string | null;
+}
+
+export interface IntakeAnswerInput {
+  text: string;
+}
+
+export interface AddPathAssetInput {
+  fieldId: string;
+  deviceId: string;
+  path: string;
+}
+
+export interface AddLinkAssetInput {
+  fieldId: string;
+  url: string;
+}
+
+/** Shared by every team: the work itself and what done looks like. */
+const BASE_FIELDS = {
+  goal: { id: 'goal', label: 'Goal', question: 'What should be done? Describe the goal in a few sentences.', kind: 'longtext', required: true },
+  done: {
+    id: 'done',
+    label: 'Done when',
+    question: 'How will we know it is done? List what must be true at the end.',
+    kind: 'longtext',
+    required: true,
+  },
+  deadline: { id: 'deadline', label: 'Deadline', question: 'Is there a deadline?', kind: 'text', required: false },
+} satisfies Record<string, IntakeField>;
+
+/** What Friday collects for each team before anything is planned. */
+export const INTAKE_TEMPLATES: Record<TeamId, IntakeField[]> = {
+  nextDev: [
+    BASE_FIELDS.goal,
+    { id: 'area', label: 'Where in the project', question: 'Which part of the project does this touch (app, module, page)?', kind: 'text', required: false },
+    { id: 'stack', label: 'Stack', question: 'Which stack or libraries should be used, if it matters?', kind: 'text', required: false },
+    { id: 'designs', label: 'Designs', question: 'Any designs, screenshots or Figma links to follow?', kind: 'files', required: false, tag: 'design' },
+    { id: 'docs', label: 'API docs', question: 'Any API docs or specs the work depends on?', kind: 'files', required: false, tag: 'docs' },
+    BASE_FIELDS.done,
+    { id: 'avoid', label: 'Do not touch', question: 'Is there anything that must not change?', kind: 'longtext', required: false },
+    BASE_FIELDS.deadline,
+  ],
+  nextEditor: [
+    BASE_FIELDS.goal,
+    { id: 'platform', label: 'Platform', question: 'Where will the video go: Reel, Short, YouTube, an ad, something else?', kind: 'text', required: true },
+    { id: 'format', label: 'Length and format', question: 'How long should it be, and which aspect ratio?', kind: 'text', required: true },
+    { id: 'footage', label: 'Raw footage', question: 'Please share the raw footage.', kind: 'files', required: true, tag: 'raw-footage' },
+    { id: 'vfx', label: 'VFX references', question: 'Share the VFX or editing style references you want matched.', kind: 'files', required: true, tag: 'vfx-reference' },
+    { id: 'images', label: 'Reference images', question: 'Any reference images or a mood board?', kind: 'files', required: false, tag: 'image' },
+    { id: 'audio', label: 'Music and sound', question: 'Music and sound effects to use?', kind: 'files', required: false, tag: 'music' },
+    { id: 'brand', label: 'Brand', question: 'Logo, colours or fonts to use?', kind: 'files', required: false, tag: 'brand' },
+    { id: 'captions', label: 'Captions', question: 'Do you want captions? In which language and style?', kind: 'text', required: false },
+    BASE_FIELDS.done,
+    BASE_FIELDS.deadline,
+  ],
+  nextDesign: [
+    BASE_FIELDS.goal,
+    { id: 'audience', label: 'Audience', question: 'Who is this for?', kind: 'text', required: true },
+    { id: 'references', label: 'References', question: 'Share designs or screenshots you like.', kind: 'files', required: true, tag: 'design-reference' },
+    { id: 'brand', label: 'Brand', question: 'Any existing logo, colours or fonts? Say "none" if there is no brand yet.', kind: 'files', required: false, tag: 'brand' },
+    { id: 'dislikes', label: 'Avoid', question: 'Anything you do not like or want to avoid?', kind: 'longtext', required: false },
+    { id: 'formats', label: 'Sizes and formats', question: 'Which sizes and formats do you need (Figma, PNG, SVG, Canva)?', kind: 'text', required: true },
+    { id: 'copy', label: 'Text', question: 'Any text that must appear in the design?', kind: 'longtext', required: false },
+    BASE_FIELDS.done,
+    BASE_FIELDS.deadline,
+  ],
+  NextMarketer: [
+    BASE_FIELDS.goal,
+    { id: 'product', label: 'Product', question: 'What product or service is this about?', kind: 'longtext', required: true },
+    { id: 'customer', label: 'Customer', question: 'Who is the target customer?', kind: 'text', required: true },
+    { id: 'competitors', label: 'Competitors', question: 'Who are the main competitors?', kind: 'text', required: false },
+    { id: 'objective', label: 'Objective', question: 'What is the main goal: sales, leads, followers or awareness?', kind: 'text', required: true },
+    { id: 'platforms', label: 'Platforms', question: 'Which platforms: Facebook, Instagram, YouTube, TikTok, Google, email?', kind: 'text', required: true },
+    { id: 'budget', label: 'Budget', question: 'What is the budget?', kind: 'text', required: false },
+    { id: 'tone', label: 'Tone', question: 'What tone should the copy have?', kind: 'text', required: false },
+    { id: 'brand', label: 'Brand assets', question: 'Any brand assets to use?', kind: 'files', required: false, tag: 'brand' },
+    { id: 'history', label: 'Past results', question: 'How did past campaigns do?', kind: 'longtext', required: false },
+    BASE_FIELDS.done,
+    BASE_FIELDS.deadline,
+  ],
+};
+
+/** A file a run needs. The agent downloads uploads; folders on its own PC are opened to Claude directly. */
+export interface RunAsset {
+  id: string;
+  kind: AssetKind;
+  name: string;
+  tag: string | null;
+  fieldLabel: string;
+  path: string | null;
+  deviceId: string | null;
+  deviceName: string | null;
+  url: string | null;
+}
+
 export interface RunStartPayload {
   runId: string;
   prompt: string;
@@ -300,6 +463,8 @@ export interface RunStartPayload {
   mode: RunMode;
   /** Skills to load for this run; the agent downloads any it does not have cached. */
   skills: SkillRef[];
+  /** Files from the brief; the agent makes them available and lists them for Claude. */
+  assets: RunAsset[];
   /** Continue this Claude Code session instead of starting a new one. */
   resumeSessionId?: string;
 }

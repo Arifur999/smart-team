@@ -1,6 +1,6 @@
 'use client';
 
-import { PLAN_AGENT_NAME, TEAMS, type TaskSummary, type TeamId } from '@smart-team/shared';
+import { INTAKE_AGENT_NAME, PLAN_AGENT_NAME, TEAMS, type TaskSummary, type TeamId } from '@smart-team/shared';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useDevices } from '@/hooks/useDevices';
@@ -50,7 +50,8 @@ export function NewTaskForm({ onClose, defaultTeam, onCreated }: Props) {
         <div>
           <h2 className="font-semibold">New task</h2>
           <p className="mt-1 text-sm text-muted">
-            {PLAN_AGENT_NAME} plans it first in read-only mode. Nothing on the PC changes until you approve the plan.
+            {INTAKE_AGENT_NAME} asks for anything else the team needs, then {PLAN_AGENT_NAME} plans it in read-only mode. Nothing on the PC
+            changes until you approve the plan.
           </p>
         </div>
         <button type="button" onClick={onClose} className="text-sm text-muted hover:text-foreground">
@@ -134,7 +135,7 @@ export function NewTaskForm({ onClose, defaultTeam, onCreated }: Props) {
           disabled={saving}
           className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-60"
         >
-          {saving ? 'Creating…' : 'Create and plan'}
+          {saving ? 'Creating…' : 'Create and start the brief'}
         </button>
       </div>
     </form>

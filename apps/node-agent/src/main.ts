@@ -13,6 +13,7 @@ import { io } from 'socket.io-client';
 import { ClaudeRunner } from './claude-runner.js';
 import { loadConfig } from './config.js';
 import { detectTools, folderResources } from './resources.js';
+import { AssetCache, type PreparedAssets } from './asset-cache.js';
 import { SkillCache } from './skill-cache.js';
 
 const AGENT_VERSION = '0.3.0';
@@ -20,6 +21,9 @@ const AGENT_VERSION = '0.3.0';
 const config = loadConfig();
 const runner = new ClaudeRunner(config.claude, () => config.folders.map((f) => f.path));
 const skills = new SkillCache(config.hubUrl, config.token, config.cacheDir);
+/** This PC's id on the hub, from the register reply; brief folders on this PC are opened to Claude directly. */
+let deviceId: string | null = null;
+const assets = new AssetCache(config.hubUrl, config.token, config.cacheDir, () => deviceId, () => config.folders.map((f) => f.path));
 
 async function buildPayload(): Promise<RegisterPayload> {
   const tools = await detectTools();
@@ -42,7 +46,8 @@ let heartbeat: NodeJS.Timeout | undefined;
 socket.on('connect', async () => {
   // Re-scan on every connect so a newly installed tool or added folder shows up after a reconnect.
   const payload = await buildPayload();
-  socket.emit(AgentEvents.register, payload, () => {
+  socket.emit(AgentEvents.register, payload, (reply: { deviceId?: string } | undefined) => {
+    deviceId = reply?.deviceId ?? null;
     console.log(`Registered as "${payload.name}" with ${payload.resources.length} resources`);
   });
 
@@ -50,7 +55,7 @@ socket.on('connect', async () => {
   heartbeat = setInterval(() => socket.emit(AgentEvents.heartbeat), HEARTBEAT_MS);
 });
 
-/** A run whose skills are still downloading; Claude has not started yet, so cancelling just marks it. */
+/** A run whose skills or files are still downloading; Claude has not started yet, so cancelling just marks it. */
 let preparing: { runId: string; cancelled: boolean } | undefined;
 
 socket.on(AgentEvents.runStart, async (run: RunStartPayload) => {
@@ -63,17 +68,25 @@ socket.on(AgentEvents.runStart, async (run: RunStartPayload) => {
 
   preparing = { runId: run.runId, cancelled: false };
   let pluginDir: string | null = null;
+  let files: PreparedAssets = { addDirs: [], promptSuffix: '' };
   try {
     pluginDir = await skills.buildPlugin(run.runId, run.skills ?? []);
   } catch (error) {
     preparing = undefined;
     return finish({ status: 'FAILED', outcome: `Could not load the team's skills: ${(error as Error).message}` });
   }
+  try {
+    files = await assets.prepare(run.assets ?? [], run.mode);
+  } catch (error) {
+    preparing = undefined;
+    return finish({ status: 'FAILED', outcome: `Could not get the brief's files: ${(error as Error).message}` });
+  }
   const cancelled = preparing?.cancelled;
   preparing = undefined;
   if (cancelled) return finish({ status: 'CANCELLED', outcome: 'Cancelled from the dashboard.' });
 
   const names = (run.skills ?? []).map((s) => s.name);
+  const fileCount = (run.assets ?? []).length;
   runner.start(
     run,
     {
@@ -82,7 +95,12 @@ socket.on(AgentEvents.runStart, async (run: RunStartPayload) => {
     },
     {
       ...(pluginDir ? { pluginDir } : {}),
-      notes: [names.length ? `Loaded ${names.length} team skills: ${names.join(', ')}` : 'No team skills for this run.'],
+      addDirs: files.addDirs,
+      promptSuffix: files.promptSuffix,
+      notes: [
+        names.length ? `Loaded ${names.length} team skills: ${names.join(', ')}` : 'No team skills for this run.',
+        ...(fileCount ? [`${fileCount} file${fileCount === 1 ? '' : 's'} from the brief ready.`] : []),
+      ],
     },
   );
 });

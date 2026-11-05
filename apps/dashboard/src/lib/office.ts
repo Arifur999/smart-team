@@ -92,11 +92,17 @@ export function officeMembers(teamId: TeamId, tasks: TaskSummary[]): OfficeMembe
   const awaiting = mine.find((t) => t.status === 'AWAITING_APPROVAL');
   const executing = mine.find((t) => t.status === 'RUNNING' && t.mode === 'EXECUTE');
   const queued = mine.find((t) => t.status === 'QUEUED');
+  const checkingBrief = mine.find((t) => t.status === 'INTAKE' && t.intakePhase === 'REVIEWING');
+  const briefWaiting = mine.find((t) => t.status === 'INTAKE' && t.intakePhase !== 'REVIEWING');
   const active = executing ?? planning;
   const firstWorker = team.members.find((m) => m.role === 'worker')?.id;
 
   const activityOf = (member: TeamMember): Activity => {
     switch (member.role) {
+      case 'intake':
+        if (checkingBrief) return { room: 'briefing', label: 'Checking the brief', detail: checkingBrief.title, tone: 'busy', pose: 'type', taskId: checkingBrief.id };
+        if (briefWaiting) return { room: 'briefing', label: 'Waiting for your answers', detail: briefWaiting.title, tone: 'waiting', pose: 'stand', taskId: briefWaiting.id };
+        return idle();
       case 'planner':
         if (planning) return { room: 'briefing', label: 'Planning', detail: planning.title, tone: 'busy', pose: 'type', taskId: planning.id };
         if (awaiting) return { room: 'approval', label: 'Waiting for your approval', detail: awaiting.title, tone: 'waiting', pose: 'stand', taskId: awaiting.id };
@@ -115,7 +121,7 @@ export function officeMembers(teamId: TeamId, tasks: TaskSummary[]): OfficeMembe
       case 'reference':
         return idle();
       default:
-        // Manager, Final QA, intake agent and command bot start working in later phases.
+        // Manager, Final QA and the command bot start working in later phases.
         return offDuty();
     }
   };

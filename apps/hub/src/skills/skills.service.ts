@@ -56,6 +56,8 @@ export class SkillsService implements OnModuleInit {
 
   /** The skills a run loads: plans get the planner's skills plus the team's worker skills, work gets the worker skills. */
   forRun(team: TeamId, mode: RunMode): SkillRef[] {
+    // The intake agent's brief check only reads the brief; it needs no team skills.
+    if (mode === 'INTAKE') return [];
     const keys = mode === 'PLAN' ? [skillRoleKey(null, 'planner'), skillRoleKey(team, 'worker')] : [skillRoleKey(team, 'worker')];
     const names = new Set(keys.flatMap((k) => this.expand(this.manifest.roles[k] ?? [])));
     return [...names].flatMap((n) => {

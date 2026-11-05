@@ -13,7 +13,7 @@ import { officeMembers } from '@/lib/office';
 import { NewTaskForm } from '../NewTaskForm';
 import { MemberDetail } from './MemberDetail';
 import { MemberList } from './MemberList';
-import { NeedsYou } from './NeedsYou';
+import { NeedsYou, needsYou } from './NeedsYou';
 import { OfficeMap } from './OfficeMap';
 import { OfficeTerminal } from './OfficeTerminal';
 import { PhaseSteps } from './PhaseSteps';
@@ -39,8 +39,8 @@ export function AgentOffice() {
   const selected = members.find((m) => m.id === selectedId) ?? null;
   const teamTasks = (tasks ?? []).filter((t) => t.team === teamId);
   // The task in focus: the one going now, else the one waiting for you, else the latest.
-  const focus = teamTasks.find((t) => t.status === 'RUNNING') ?? teamTasks.find((t) => t.status === 'AWAITING_APPROVAL') ?? teamTasks[0];
-  const waiting = (tasks ?? []).filter((t) => t.status === 'AWAITING_APPROVAL').reverse();
+  const focus = teamTasks.find((t) => t.status === 'RUNNING') ?? teamTasks.find(needsYou) ?? teamTasks[0];
+  const waiting = (tasks ?? []).filter(needsYou).reverse();
   const busyCount = members.filter((m) => m.activity.tone === 'busy' || m.activity.tone === 'waiting').length;
   const onlinePcs = devices?.filter((d) => d.status === 'ONLINE').length ?? 0;
 
@@ -156,10 +156,9 @@ export function AgentOffice() {
               defaultTeam={teamId}
               onClose={() => setCreating(false)}
               onCreated={(task) => {
-                // Stay in the office and watch the terminal while the plan agent picks it up.
+                // The brief chat lives on the task page; the office shows the intake agent at work meanwhile.
                 setCreating(false);
-                if (task.team !== teamId) setTeamId(task.team);
-                setPanel('terminal');
+                router.push(`/tasks/${task.id}`);
               }}
             />
           </div>

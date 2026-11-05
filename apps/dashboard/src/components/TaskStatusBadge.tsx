@@ -1,6 +1,7 @@
 import type { RunMode, TaskStatus } from '@smart-team/shared';
 
 const STYLES: Record<string, { label: string; className: string; pulse?: boolean }> = {
+  INTAKE: { label: 'Brief', className: 'bg-accent-soft text-accent' },
   QUEUED: { label: 'Queued', className: 'bg-idle-soft text-muted' },
   PLANNING: { label: 'Planning', className: 'bg-accent-soft text-accent', pulse: true },
   WORKING: { label: 'Working', className: 'bg-accent-soft text-accent', pulse: true },

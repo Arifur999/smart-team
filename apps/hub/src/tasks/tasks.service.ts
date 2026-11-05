@@ -39,7 +39,11 @@ const TASK_SELECT = {
   team: true,
   title: true,
   createdAt: true,
-  // The newest run is the task's current state.
+  deviceId: true,
+  workDir: true,
+  device: { select: { name: true } },
+  brief: { select: { phase: true } },
+  // The newest run is the task's current state once the brief is locked.
   runs: { select: RUN_SELECT, orderBy: NEWEST_FIRST, take: 1 },
 } satisfies Prisma.TaskSelect;
 
@@ -64,11 +68,20 @@ export interface StartableRun {
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Every task starts with a plan run; nothing on the PC changes until you approve it. */
+  /** Every task starts with the intake: no run exists until the intake agent queues its brief check. */
   async create(input: CreateTaskInput): Promise<TaskSummary> {
-    const task = await this.prisma.task.create({ data: { team: input.team, title: input.title }, select: { id: true } });
-    await this.addRun(task.id, { team: input.team, deviceId: input.deviceId, workDir: input.workDir, prompt: input.prompt, mode: 'PLAN' });
+    const task = await this.prisma.task.create({
+      data: { team: input.team, title: input.title, deviceId: input.deviceId, workDir: input.workDir, brief: { create: {} } },
+      select: { id: true },
+    });
     return this.summary(task.id);
+  }
+
+  /** Queues a run on the task's own PC and folder. Used by the intake for its brief check and for the plan. */
+  async queueRun(taskId: string, mode: RunMode, prompt: string): Promise<void> {
+    const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: { team: true, deviceId: true, workDir: true } });
+    if (!task?.deviceId || !task.workDir) throw new NotFoundException('Task not found');
+    await this.addRun(taskId, { team: task.team, deviceId: task.deviceId, workDir: task.workDir, prompt, mode });
   }
 
   async approve(taskId: string): Promise<void> {
@@ -82,6 +95,7 @@ export class TasksService {
    * after work has started it continues the same session.
    */
   async followUp(taskId: string, prompt: string): Promise<void> {
+    if ((await this.summary(taskId)).status === 'INTAKE') throw new ConflictException('Answer the intake agent in the brief chat first.');
     const run = await this.newestRun(taskId);
     if (!isFinished(run.status)) throw new ConflictException('Wait for the current run to finish first.');
     await this.addRun(taskId, { ...continueFrom(run), prompt, mode: run.mode });
@@ -142,9 +156,11 @@ export class TasksService {
     });
     if (count === 0) return null;
 
-    // Continue the conversation of the task's previous run on this device, if it reported a session.
+    // Continue the conversation of the task's previous run by the same kind of agent on this device:
+    // the intake agent resumes its own checks, the planner and worker share theirs.
+    const sameAgent: RunMode[] = next.mode === 'INTAKE' ? ['INTAKE'] : ['PLAN', 'EXECUTE'];
     const previous = await this.prisma.run.findFirst({
-      where: { taskId: next.taskId, deviceId, id: { not: next.id }, sessionId: { not: null } },
+      where: { taskId: next.taskId, deviceId, id: { not: next.id }, sessionId: { not: null }, mode: { in: sameAgent } },
       select: { sessionId: true },
       orderBy: NEWEST_FIRST,
     });
@@ -267,7 +283,7 @@ function tokenColumns(u: TokenUsage) {
   return { inputTokens: u.input, outputTokens: u.output, cacheReadTokens: u.cacheRead, cacheCreationTokens: u.cacheCreation };
 }
 
-function isFinished(status: TaskStatus): boolean {
+export function isFinished(status: TaskStatus): boolean {
   return status === 'SUCCEEDED' || status === 'FAILED' || status === 'CANCELLED';
 }
 
@@ -277,20 +293,27 @@ export function taskStatus(run: Pick<RunRow, 'mode' | 'status'>): TaskStatus {
 
 function toSummary(task: TaskRow): TaskSummary {
   const run = task.runs[0];
-  if (!run) throw new Error(`Task ${task.id} has no run`);
+  const intakePhase = task.brief?.phase ?? null;
+  // Until the brief is locked the task is in intake, whatever the intake agent's own runs are doing.
+  const inIntake = intakePhase !== null && intakePhase !== 'LOCKED';
+  const deviceId = task.deviceId ?? run?.deviceId;
+  const workDir = task.workDir ?? run?.workDir;
+  if (!deviceId || !workDir) throw new Error(`Task ${task.id} has no PC`);
+
   return {
     id: task.id,
     team: task.team,
     title: task.title,
-    status: taskStatus(run),
-    mode: run.mode,
-    deviceId: run.deviceId,
-    deviceName: run.device.name,
-    workDir: run.workDir,
+    status: inIntake || !run ? 'INTAKE' : taskStatus(run),
+    mode: inIntake || !run ? 'INTAKE' : run.mode,
+    intakePhase,
+    deviceId,
+    deviceName: task.device?.name ?? run?.device.name ?? 'Unknown PC',
+    workDir,
     createdAt: task.createdAt.toISOString(),
-    startedAt: run.startedAt?.toISOString() ?? null,
-    finishedAt: run.finishedAt?.toISOString() ?? null,
-    outcome: run.outcome,
-    costUsd: run.costUsd === null ? null : run.costUsd.toNumber(),
+    startedAt: run?.startedAt?.toISOString() ?? null,
+    finishedAt: run?.finishedAt?.toISOString() ?? null,
+    outcome: run?.outcome ?? null,
+    costUsd: run?.costUsd ? run.costUsd.toNumber() : null,
   };
 }

@@ -25,7 +25,7 @@ export function useTeamChat(teamId: TeamId, tasks: TaskSummary[] | null) {
   useEffect(() => {
     const socket = hubSocket();
     const onUpdated = (task: TaskSummary) => {
-      const key = `${task.status}:${task.mode}`;
+      const key = stateKey(task);
       if (lastStatus.current.get(task.id) === key) return;
       lastStatus.current.set(task.id, key);
       const line = chatLine(task, new Date().toISOString());
@@ -58,9 +58,14 @@ function chatLine(task: TaskSummary, at: string): ChatLine | null {
   const leader = team.members.find((m) => m.role === 'leader')!;
   const worker = team.members.find((m) => m.id === runAgentId(task.team, 'EXECUTE'))!;
   const planner = LEADERSHIP.find((m) => m.role === 'planner')!;
+  const intake = LEADERSHIP.find((m) => m.role === 'intake')!;
   const title = `“${task.title}”`;
 
   const byStatus: Record<string, [typeof planner, string]> = {
+    'INTAKE:ASKING': [intake, `Collecting the brief for ${title}.`],
+    'INTAKE:REVIEWING': [intake, `Checking the brief for ${title}.`],
+    'INTAKE:CLARIFYING': [intake, `A few questions about ${title} before planning.`],
+    'INTAKE:READY': [intake, `Brief for ${title} is ready. Please confirm it.`],
     'QUEUED:PLAN': [planner, `Picked up ${title}. Waiting for ${task.deviceName}.`],
     'RUNNING:PLAN': [planner, `Planning ${title} on ${task.deviceName}.`],
     'AWAITING_APPROVAL:PLAN': [planner, `Plan for ${title} is ready. Your call.`],
@@ -72,8 +77,14 @@ function chatLine(task: TaskSummary, at: string): ChatLine | null {
     'CANCELLED:PLAN': [leader, `Stopped planning ${title}.`],
     'CANCELLED:EXECUTE': [leader, `Stopped work on ${title}.`],
   };
-  const entry = byStatus[`${task.status}:${task.mode}`];
+  const key = stateKey(task);
+  const entry = byStatus[key];
   if (!entry) return null;
   const [member, text] = entry;
-  return { id: `${task.team}:${task.id}:${task.status}:${task.mode}`, at, memberId: member.id, name: member.name, text };
+  return { id: `${task.team}:${task.id}:${key}`, at, memberId: member.id, name: member.name, text };
+}
+
+/** During intake the brief phase tells the story; afterwards the run status and mode do. */
+function stateKey(task: TaskSummary): string {
+  return task.status === 'INTAKE' ? `INTAKE:${task.intakePhase}` : `${task.status}:${task.mode}`;
 }
