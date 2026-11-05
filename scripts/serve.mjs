@@ -3,6 +3,7 @@
 //
 //   node scripts/serve.mjs              start everything
 //   node scripts/serve.mjs --no-agent   start without this PC's node agent
+//   node scripts/serve.mjs --agent-only on the other PCs: only the node agent (set up by scripts/join.ps1)
 //   node scripts/serve.mjs --stop       stop a running copy (also when it runs hidden at sign-in)
 import { spawn, spawnSync } from 'node:child_process';
 import { createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -25,29 +26,37 @@ const MAX_LOG_BYTES = 10 * 1024 * 1024;
 mkdirSync(logDir, { recursive: true });
 const args = process.argv.slice(2);
 if (args.includes('--stop')) await stopRunningCopy();
-else await serve(!args.includes('--no-agent'));
+else await serve({ withAgent: !args.includes('--no-agent'), agentOnly: args.includes('--agent-only') });
 
-async function serve(withAgent) {
+async function serve({ withAgent, agentOnly }) {
   const running = readPid();
   if (running) fail(`smart-team is already running (pid ${running}). Stop it with: npm run serve:stop`);
-  for (const dir of [join(hubDir, 'dist'), join(dashboardDir, '.next'), ...(withAgent ? [join(agentDir, 'dist')] : [])]) {
-    if (!existsSync(dir)) fail(`${dir} is missing. Build first: npm run build:all`);
+  const needed = agentOnly ? [join(agentDir, 'dist')] : [join(hubDir, 'dist'), join(dashboardDir, '.next'), ...(withAgent ? [join(agentDir, 'dist')] : [])];
+  for (const dir of needed) {
+    if (!existsSync(dir)) fail(`${dir} is missing. Build first: ${agentOnly ? 'run scripts/join.ps1 again' : 'npm run build:all'}`);
   }
-  if (withAgent && !existsSync(join(agentDir, 'agent.config.json'))) {
+  if ((withAgent || agentOnly) && !existsSync(join(agentDir, 'agent.config.json'))) {
+    if (agentOnly) fail('apps/node-agent/agent.config.json is missing. Run scripts/join.ps1 first.');
     console.log('apps/node-agent/agent.config.json is missing, so this PC will not run agents. See the README.');
     withAgent = false;
   }
   writeFileSync(pidFile, String(process.pid));
   rmSync(stopFile, { force: true });
 
-  const hubEnv = parseEnv(readFileSync(join(hubDir, '.env'), 'utf8'));
-  const dbPort = Number(new URL(hubEnv.DATABASE_URL).port || 5432);
-  const require = createRequire(join(dashboardDir, 'package.json'));
-  const services = [
-    { name: 'hub', cwd: hubDir, args: ['dist/main.js'] },
-    { name: 'dashboard', cwd: dashboardDir, args: [require.resolve('next/dist/bin/next'), 'start', '-H', '0.0.0.0', '-p', DASHBOARD_PORT] },
-    ...(withAgent ? [{ name: 'agent', cwd: agentDir, args: ['dist/main.js'] }] : []),
-  ];
+  const agent = { name: 'agent', cwd: agentDir, args: ['dist/main.js'] };
+  const hubEnv = agentOnly ? {} : parseEnv(readFileSync(join(hubDir, '.env'), 'utf8'));
+  const dbPort = agentOnly ? 0 : Number(new URL(hubEnv.DATABASE_URL).port || 5432);
+  const services = agentOnly
+    ? [agent]
+    : [
+        { name: 'hub', cwd: hubDir, args: ['dist/main.js'] },
+        {
+          name: 'dashboard',
+          cwd: dashboardDir,
+          args: [createRequire(join(dashboardDir, 'package.json')).resolve('next/dist/bin/next'), 'start', '-H', '0.0.0.0', '-p', DASHBOARD_PORT],
+        },
+        ...(withAgent ? [agent] : []),
+      ];
 
   let stopping = false;
   let postgresReady = false;
@@ -92,6 +101,11 @@ async function serve(withAgent) {
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
   setInterval(() => existsSync(stopFile) && void shutdown(), 1000);
+
+  if (agentOnly) {
+    start(agent);
+    return console.log('smart-team agent is starting; this PC shows on the dashboard within a few seconds');
+  }
 
   start({ name: 'postgres', cwd: hubDir, args: ['scripts/postgres.mjs'], ipc: true });
   if (!(await waitUntil(() => postgresReady, 90_000))) console.log(`postgres was not ready on port ${dbPort} within 90s; see logs/postgres.log`);

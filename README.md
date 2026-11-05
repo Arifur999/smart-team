@@ -81,7 +81,19 @@ The hub has no login yet, so never put it on the public internet (port forwardin
 
 `npm run db` starts only Postgres; then `npm run dev:hub` and `npm run dev:dashboard` reload on every change.
 
-## Setup on every PC (including the hub PC)
+## Add another PC
+
+A PC shows on the dashboard only when its node agent runs and connects to the hub; being on the same network is not enough. On each other PC, install Node.js 24+, git and Claude Code (sign in once by running `claude`), then:
+
+```bash
+git clone https://github.com/Arifur999/smart-team.git
+cd smart-team
+powershell -ExecutionPolicy Bypass -File scripts/join.ps1 -Hub <hub-pc-ip> -Token <AGENT_TOKEN>
+```
+
+`AGENT_TOKEN` is the value in `apps/hub/.env` on the hub PC. The script checks the hub is reachable, installs and builds the agent, writes its settings, shares your Documents folder (pass `-Folders "D:\Videos","E:\Projects"` for others, `-Name "Video PC"` for a friendlier name), and starts the agent now and at every sign-in. The PC appears on the dashboard within seconds.
+
+## Agent setup by hand (including the hub PC)
 
 ```bash
 npm install
