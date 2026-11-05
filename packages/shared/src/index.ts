@@ -19,6 +19,7 @@ export const DashboardEvents = {
   devices: 'devices:snapshot',
   taskUpdated: 'task:updated',
   taskLog: 'task:log',
+  botMessage: 'bot:message',
   // dashboard -> hub: join or leave the live log of one task
   watchTask: 'task:watch',
   unwatchTask: 'task:unwatch',
@@ -498,4 +499,60 @@ export interface RunFinishedPayload {
   usage?: TokenUsage;
   /** Claude Code's session id, so a follow-up can continue the same conversation. */
   sessionId?: string;
+}
+
+// ---- Command bot ----
+
+/** The command bot's name in the office (the "command-bot" member). */
+export const BOT_NAME = 'Jarvis';
+
+export type BotRole = 'YOU' | 'BOT';
+
+/** Something the bot did, or wants you to confirm, shown as a card under its message. */
+export type BotAction =
+  | { kind: 'task-created'; id: string; taskId: string; team: TeamId; title: string }
+  | {
+      kind: 'confirm';
+      id: string;
+      /** cancel: stop the task. approve: carry out its plan. instruct: send `text` to the task's Claude session. */
+      action: 'cancel' | 'approve' | 'instruct';
+      taskId: string;
+      title: string;
+      text?: string;
+      /** Null until you answer. */
+      answer: 'confirmed' | 'declined' | null;
+      /** Why it could not be done, if it failed after you confirmed. */
+      error?: string;
+    };
+
+export interface BotMessageView {
+  id: string;
+  role: BotRole;
+  text: string;
+  /** The team the message was about (an @mention or the selected team), if any. */
+  team: TeamId | null;
+  actions: BotAction[];
+  at: string;
+}
+
+export interface BotStatus {
+  /** False when the hub has no Claude API key. */
+  enabled: boolean;
+  model: string;
+}
+
+export interface BotSendInput {
+  text: string;
+  /** The team picked in the bot panel, if any. */
+  team?: TeamId | null;
+}
+
+/** Finds `@team` mentions (case-insensitive, e.g. "@nextdev") in a message. */
+export function mentionedTeams(text: string): TeamId[] {
+  const found = new Set<TeamId>();
+  for (const match of text.matchAll(/@([A-Za-z]+)/g)) {
+    const team = TEAM_IDS.find((id) => id.toLowerCase() === match[1]!.toLowerCase());
+    if (team) found.add(team);
+  }
+  return [...found];
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { BotPanel } from '@/components/bot/BotPanel';
 import { NavLinks } from '@/components/NavLinks';
 import './globals.css';
 
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           </div>
         </nav>
         {children}
+        <BotPanel />
       </body>
     </html>
   );

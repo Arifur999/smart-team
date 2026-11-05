@@ -13,6 +13,14 @@ const envSchema = z.object({
   UPLOAD_DIR: z.string().default(resolve(process.cwd(), 'uploads')),
   /** Largest single upload, in megabytes. Raw footage can be big. */
   MAX_UPLOAD_MB: z.coerce.number().int().positive().default(4096),
+  /** Claude API key for the command bot. Without it the bot is switched off; agents never use it. */
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  /** Needed when the key is not scoped to one workspace: the workspace id from the Claude Console (Settings → Workspaces). */
+  ANTHROPIC_WORKSPACE_ID: z.string().min(1).optional(),
+  /** Model the command bot talks with. */
+  BOT_MODEL: z.string().default('claude-opus-5-5'),
+  /** How hard the bot thinks before answering: low is quickest and cheapest, high the most careful. */
+  BOT_EFFORT: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).default('medium'),
   /** More folders of Claude Code skills on the hub PC, separated by the OS path delimiter (";" on Windows). */
   SKILL_DIRS: z
     .string()

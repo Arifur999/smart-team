@@ -3,6 +3,9 @@ import type {
   AddPathAssetInput,
   AgentStats,
   AssetView,
+  BotMessageView,
+  BotSendInput,
+  BotStatus,
   CreateTaskInput,
   IntakeView,
   RoleSkills,
@@ -53,4 +56,10 @@ export const api = {
   addPathAsset: (id: string, input: AddPathAssetInput) => request<AssetView>(`/tasks/${id}/intake/assets/path`, post(input)),
   addLinkAsset: (id: string, input: AddLinkAssetInput) => request<AssetView>(`/tasks/${id}/intake/assets/link`, post(input)),
   removeAsset: (id: string, assetId: string) => request<void>(`/tasks/${id}/intake/assets/${assetId}`, { method: 'DELETE' }),
+
+  botStatus: () => request<BotStatus>('/bot/status'),
+  botMessages: () => request<BotMessageView[]>('/bot/messages'),
+  botSend: (input: BotSendInput) => request<BotMessageView>('/bot/messages', post(input)),
+  botAnswer: (messageId: string, actionId: string, confirm: boolean) =>
+    request<BotMessageView>(`/bot/messages/${messageId}/actions/${actionId}`, post({ confirm })),
 };

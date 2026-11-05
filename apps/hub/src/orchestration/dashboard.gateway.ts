@@ -7,7 +7,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { DASHBOARD_NAMESPACE, DashboardEvents, type TaskLogEvent, type TaskSummary } from '@smart-team/shared';
+import { DASHBOARD_NAMESPACE, DashboardEvents, type BotMessageView, type TaskLogEvent, type TaskSummary } from '@smart-team/shared';
 import type { Namespace, Socket } from 'socket.io';
 import { DevicesService } from '../devices/devices.service.js';
 import { getEnv } from '../env.js';
@@ -53,5 +53,10 @@ export class DashboardGateway implements OnGatewayConnection {
 
   pushLogs(event: TaskLogEvent) {
     this.server.to(taskRoom(event.taskId)).emit(DashboardEvents.taskLog, event);
+  }
+
+  /** New or changed bot messages, so every open dashboard shows the same chat. */
+  pushBotMessage(message: BotMessageView) {
+    this.server.emit(DashboardEvents.botMessage, message);
   }
 }

@@ -240,3 +240,22 @@ model RunLog {
   @@unique([runId, seq])
   @@map("run_logs")
 }
+enum BotRole {
+  YOU
+  BOT
+}
+
+/// One message in the command bot chat. Stored so every dashboard (PC or phone) sees the same conversation.
+model BotMessage {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  role      BotRole
+  text      String
+  /// The team the message was about (an @mention or the selected team), if any.
+  team      Team?
+  /// Cards under the message: tasks the bot created and actions waiting for your confirmation.
+  actions   Json     @default("[]")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([createdAt])
+  @@map("bot_messages")
+}
