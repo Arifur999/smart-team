@@ -13,6 +13,6 @@ app.enableCors({ origin: env.DASHBOARD_ORIGIN });
 app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
 app.enableShutdownHooks();
 
-// 0.0.0.0 so the other PCs on the LAN can reach the hub.
-await app.listen(env.PORT, '0.0.0.0');
+// No host: Node binds "::" dual-stack, so LAN IPv4 clients and "localhost" (often ::1 on Windows) both reach the hub.
+await app.listen(env.PORT);
 console.log(`hub listening on :${env.PORT}`);

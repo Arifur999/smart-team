@@ -25,7 +25,8 @@ export function DeviceCard({ device, now }: { device: DeviceView; now: number | 
         </span>
       </header>
 
-      {now !== null && <p className="mt-2 text-xs text-muted">Last seen {timeAgo(device.lastSeenAt, now)}</p>}
+      {/* Heartbeats are not pushed to the dashboard, so lastSeenAt only means something once a PC is offline. */}
+      {!online && now !== null && <p className="mt-2 text-xs text-muted">Last seen {timeAgo(device.lastSeenAt, now)}</p>}
 
       <section className="mt-4">
         <h3 className="text-xs font-medium uppercase tracking-wide text-muted">Tools</h3>
