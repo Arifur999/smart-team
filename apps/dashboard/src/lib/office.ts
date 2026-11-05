@@ -14,40 +14,67 @@ export interface Room {
   y: number;
   w: number;
   h: number;
+  /** Open plan: no glass front wall. */
+  open?: boolean;
   /** Where people stand (their feet), in the order they fill up. */
   slots: Point[];
 }
 
-/** Map coordinates. The office is drawn in a 1000 x 640 box. */
+/** Map coordinates. The office is drawn in a 1000 x 720 box. */
 export const MAP_W = 1000;
-export const MAP_H = 640;
+export const MAP_H = 720;
 
 const grid = (x0: number, y0: number, cols: number, rows: number, dx: number, dy: number): Point[] =>
   Array.from({ length: rows * cols }, (_, i) => ({ x: x0 + (i % cols) * dx, y: y0 + Math.floor(i / cols) * dy }));
 
-/** Workspace desks (top-left of each desk). People sit behind them, so their slot is just above the desk. */
-export const DESKS: Point[] = grid(48, 286, 3, 2, 150, 84);
-export const DESK_W = 100;
+/** Workspace double desks (top-left of each). Two people sit behind each one, so their slots are just above it. */
+export const DESKS: Point[] = grid(84, 330, 2, 2, 190, 100);
+export const DESK_W = 150;
+/** Where the two seats of a desk are, from its left edge. */
+export const DESK_SEATS = [38, 112];
 
-/** Command Center consoles (top-left). Leaders stand behind them. */
-export const CONSOLES: Point[] = grid(560, 300, 2, 2, 210, 72);
-export const CONSOLE_W = 170;
+/** Command Center consoles (top-left): two long rows. Leaders stand behind them. */
+export const CONSOLES: Point[] = grid(600, 360, 1, 2, 0, 110);
+export const CONSOLE_W = 320;
+export const CONSOLE_SEATS = [80, 240];
 
 /** Beds in the rest room (top-left). */
-export const BEDS: Point[] = grid(866, 478, 2, 2, 58, 68);
+export const BEDS: Point[] = grid(897, 60, 2, 2, 46, 80);
+export const BED_W = 40;
 
-/** Rooms sit on a corridor floor with 16 px gaps, like a real floor plan. */
+/**
+ * One building, laid out like a real office floor: meeting rooms along the top, an open-plan workspace and
+ * the command center either side of a central corridor, and the lounge, pantry, lab and server room at
+ * the bottom.
+ */
 export const ROOMS: Room[] = [
-  { id: 'briefing', label: 'Briefing Room', x: 16, y: 16, w: 280, h: 176, slots: grid(64, 178, 4, 1, 60, 0) },
-  { id: 'meeting', label: 'Meeting Room', x: 312, y: 16, w: 360, h: 176, slots: grid(372, 180, 5, 1, 60, 0) },
-  { id: 'approval', label: 'Approval Room', x: 688, y: 16, w: 296, h: 176, slots: grid(776, 176, 3, 1, 62, 0) },
-  { id: 'workspace', label: 'Workspace', x: 16, y: 208, w: 470, h: 220, slots: DESKS.map((d) => ({ x: d.x + DESK_W / 2, y: d.y + 6 })) },
-  { id: 'command', label: 'Command Center', x: 502, y: 208, w: 482, h: 220, slots: CONSOLES.map((c) => ({ x: c.x + CONSOLE_W / 2, y: c.y + 4 })) },
-  { id: 'lounge', label: 'Lounge', x: 16, y: 444, w: 250, h: 180, slots: grid(84, 552, 2, 2, 116, 56) },
-  { id: 'pantry', label: 'Pantry', x: 282, y: 444, w: 190, h: 180, slots: grid(320, 610, 3, 1, 56, 0) },
-  { id: 'lab', label: 'R&D Lab', x: 488, y: 444, w: 200, h: 180, slots: grid(528, 610, 3, 1, 60, 0) },
-  { id: 'server', label: 'Server Room', x: 704, y: 444, w: 140, h: 180, slots: grid(740, 610, 2, 1, 64, 0) },
-  { id: 'rest', label: 'Rest Room', x: 860, y: 444, w: 124, h: 180, slots: BEDS.map((b) => ({ x: b.x + 25, y: b.y + 46 })) },
+  { id: 'briefing', label: 'Briefing Room', x: 12, y: 12, w: 232, h: 222, slots: grid(56, 214, 4, 1, 50, 0) },
+  { id: 'meeting', label: 'Meeting Room', x: 286, y: 12, w: 330, h: 222, slots: grid(336, 214, 5, 1, 58, 0) },
+  { id: 'approval', label: 'Approval Room', x: 664, y: 12, w: 214, h: 222, slots: grid(712, 214, 3, 1, 58, 0) },
+  { id: 'rest', label: 'Rest Room', x: 890, y: 12, w: 98, h: 222, slots: BEDS.map((b) => ({ x: b.x + BED_W / 2, y: b.y + 46 })) },
+  {
+    id: 'workspace',
+    label: 'Workspace',
+    x: 12,
+    y: 248,
+    w: 438,
+    h: 262,
+    open: true,
+    slots: DESKS.flatMap((d) => DESK_SEATS.map((s) => ({ x: d.x + s, y: d.y + 6 }))),
+  },
+  {
+    id: 'command',
+    label: 'Command Center',
+    x: 530,
+    y: 248,
+    w: 458,
+    h: 340,
+    slots: CONSOLES.flatMap((c) => CONSOLE_SEATS.map((s) => ({ x: c.x + s, y: c.y + 4 }))),
+  },
+  { id: 'lounge', label: 'Lounge', x: 12, y: 524, w: 214, h: 184, slots: grid(70, 630, 2, 2, 110, 56) },
+  { id: 'pantry', label: 'Pantry', x: 238, y: 524, w: 212, h: 184, slots: grid(282, 688, 3, 1, 62, 0) },
+  { id: 'lab', label: 'R&D Lab', x: 530, y: 600, w: 210, h: 108, slots: grid(574, 692, 3, 1, 60, 0) },
+  { id: 'server', label: 'Server Room', x: 752, y: 600, w: 236, h: 108, slots: grid(830, 692, 2, 1, 64, 0) },
 ];
 export type Tone = 'busy' | 'waiting' | 'idle' | 'off';
 export type Pose = 'stand' | 'type' | 'sleep';

@@ -1,4 +1,4 @@
-import { BEDS, CONSOLE_W, CONSOLES, DESK_W, DESKS, MAP_H, MAP_W, ROOMS, type Room, type RoomId } from '@/lib/office';
+import { BED_W, BEDS, CONSOLE_SEATS, CONSOLE_W, CONSOLES, DESK_SEATS, DESK_W, DESKS, MAP_H, MAP_W, ROOMS, type Room, type RoomId } from '@/lib/office';
 
 /**
  * The office floor plan: one building with thick shared walls, a grey tiled corridor, rooms with glass
@@ -61,13 +61,24 @@ export function OfficeBuilding({ counts }: { counts: Map<RoomId, number> }) {
       {ROOMS.map((room) => (
         <RoomShape key={room.id} room={room} count={counts.get(room.id) ?? 0} />
       ))}
-      {/* Corridor dressing: lamps and plants between rooms. */}
-      {[200, 492, 800].map((x) => (
-        <CorridorLamp key={x} x={x} y={200} />
+      {/* Corridor dressing: lamps along the halls, the nooks between the top rooms and the stairs down. */}
+      {[300, 420, 540, 640].map((y) => (
+        <CorridorLamp key={y} x={490} y={y} />
       ))}
-      {[150, 600, 900].map((x) => (
-        <CorridorLamp key={`b${x}`} x={x} y={436} />
+      {[130, 360, 760].map((x) => (
+        <CorridorLamp key={`t${x}`} x={x} y={241} />
       ))}
+      {[120, 340].map((x) => (
+        <CorridorLamp key={`b${x}`} x={x} y={517} />
+      ))}
+      <Plant x={265} y={64} />
+      <rect x={256} y={112} width="18" height="26" fill="#9aa1ad" />
+      <rect x={258} y={106} width="14" height="8" fill="#7aa7d8" opacity="0.8" />
+      <Plant x={265} y={204} />
+      <Shelf x={624} y={40} />
+      <Cabinet x={627} y={120} w={26} />
+      <Plant x={640} y={204} />
+      <Stairs x={462} y={672} w={56} h={42} />
     </svg>
   );
 }
@@ -158,14 +169,18 @@ function RoomShape({ room, count }: { room: Room; count: number }) {
         </g>
       ))}
 
-      {/* Glass front wall with a double door. */}
-      <GlassWall x={x} y={y + h - GLASS} w={doorX - x} />
-      <GlassWall x={doorX + doorW} y={y + h - GLASS} w={x + w - doorX - doorW} />
-      <rect x={doorX} y={y + h - GLASS} width={doorW / 2 - 1} height={GLASS} fill={C.glass} opacity="0.18" />
-      <rect x={doorX + doorW / 2 + 1} y={y + h - GLASS} width={doorW / 2 - 1} height={GLASS} fill={C.glass} opacity="0.18" />
-      <rect x={doorX} y={y + h - GLASS} width={doorW} height="1.5" fill={C.glassFrame} />
-      <rect x={doorX + doorW / 2 - 4} y={y + h - 7} width="2" height="4" fill="#c9d3e0" />
-      <rect x={doorX + doorW / 2 + 2} y={y + h - 7} width="2" height="4" fill="#c9d3e0" />
+      {/* Glass front wall with a double door; open-plan areas have none. */}
+      {!room.open && (
+        <>
+          <GlassWall x={x} y={y + h - GLASS} w={doorX - x} />
+          <GlassWall x={doorX + doorW} y={y + h - GLASS} w={x + w - doorX - doorW} />
+          <rect x={doorX} y={y + h - GLASS} width={doorW / 2 - 1} height={GLASS} fill={C.glass} opacity="0.18" />
+          <rect x={doorX + doorW / 2 + 1} y={y + h - GLASS} width={doorW / 2 - 1} height={GLASS} fill={C.glass} opacity="0.18" />
+          <rect x={doorX} y={y + h - GLASS} width={doorW} height="1.5" fill={C.glassFrame} />
+          <rect x={doorX + doorW / 2 - 4} y={y + h - 7} width="2" height="4" fill="#c9d3e0" />
+          <rect x={doorX + doorW / 2 + 2} y={y + h - 7} width="2" height="4" fill="#c9d3e0" />
+        </>
+      )}
 
       {occupied && (
         <>
@@ -202,6 +217,18 @@ function GlassWall({ x, y, w }: { x: number; y: number; w: number }) {
       {Array.from({ length: Math.max(1, Math.floor(w / 42)) }, (_, i) => (
         <rect key={`g${i}`} x={x + 5 + i * 42} y={y + 3} width={Math.min(12, w - 8)} height="1" fill="#ffffff" opacity="0.4" />
       ))}
+    </g>
+  );
+}
+
+function Stairs({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
+  return (
+    <g>
+      {Array.from({ length: Math.floor(h / 6) }, (_, i) => (
+        <rect key={i} x={x} y={y + i * 6} width={w} height="5" fill={i % 2 ? '#3a3e47' : '#454a55'} />
+      ))}
+      <rect x={x - 3} y={y} width="3" height={h} fill="#22252c" />
+      <rect x={x + w} y={y} width="3" height={h} fill="#22252c" />
     </g>
   );
 }
@@ -253,18 +280,25 @@ function Monitor({ x, y, w = 24, h = 15, color = C.glow }: { x: number; y: numbe
   );
 }
 
-function Desk({ x, y, w = DESK_W, variant = 0 }: { x: number; y: number; w?: number; variant?: number }) {
+/** A double desk: two seats, each with a chair, two monitors and a keyboard. */
+function Desk({ x, y, variant = 0 }: { x: number; y: number; variant?: number }) {
   return (
     <g>
-      <OfficeChair x={x + w / 2} y={y - 2} />
-      <Box x={x} y={y} w={w} d={24} h={10} top={C.deskTop} front={C.deskFront} />
-      <Monitor x={x + w / 2 - 28} y={y - 8} w={26} h={16} />
-      <Monitor x={x + w / 2 + 2} y={y - 8} w={26} h={16} color={variant % 2 ? C.glowGreen : C.glow} />
-      <rect x={x + w / 2 - 18} y={y + 14} width="36" height="5" fill="#2a2d34" />
-      <rect x={x + w / 2 - 16} y={y + 15} width="32" height="1" fill="#565b66" />
-      <rect x={x + w / 2 + 22} y={y + 14} width="4" height="5" fill="#2a2d34" />
-      {variant % 3 === 0 ? <rect x={x + 8} y={y + 12} width="6" height="6" fill="#ece5d8" /> : <Plant x={x + 10} y={y + 2} small />}
-      <Mug x={x + w - 12} y={y + 8} />
+      {DESK_SEATS.map((s) => (
+        <OfficeChair key={s} x={x + s} y={y - 2} />
+      ))}
+      <Box x={x} y={y} w={DESK_W} d={24} h={10} top={C.deskTop} front={C.deskFront} />
+      {DESK_SEATS.map((s, k) => (
+        <g key={s}>
+          <Monitor x={x + s - 27} y={y - 8} w={25} h={16} />
+          <Monitor x={x + s + 2} y={y - 8} w={25} h={16} color={(variant + k) % 2 ? C.glowGreen : C.glow} />
+          <rect x={x + s - 16} y={y + 14} width="32" height="5" fill="#2a2d34" />
+          <rect x={x + s - 14} y={y + 15} width="28" height="1" fill="#565b66" />
+        </g>
+      ))}
+      <rect x={x + DESK_W / 2 - 1} y={y + 1} width="2" height="22" fill={C.deskFront} />
+      <Mug x={x + DESK_SEATS[1]! + 20} y={y + 13} />
+      {variant % 2 ? <Plant x={x + 8} y={y + 6} small /> : <rect x={x + 4} y={y + 13} width="8" height="6" fill="#ece5d8" />}
     </g>
   );
 }
@@ -445,105 +479,152 @@ function Mug({ x, y }: { x: number; y: number }) {
 
 function Furniture({ room }: { room: Room }) {
   const { x, y, w, h } = room;
+  const cx = x + w / 2;
   switch (room.id) {
     case 'briefing':
+      // A projector screen on the back wall and rows of seats facing it.
       return (
         <g>
-          <Projector x={x + 80} y={y + 1} w={120} />
-          {Array.from({ length: 18 }, (_, i) => (
-            <OfficeChair key={i} x={x + 50 + (i % 6) * 36} y={y + 76 + Math.floor(i / 6) * 26} />
+          <Projector x={cx - 50} y={y + 1} w={110} />
+          {Array.from({ length: 15 }, (_, i) => (
+            <OfficeChair key={i} x={x + 44 + (i % 5) * 36} y={y + 88 + Math.floor(i / 5) * 30} />
           ))}
-          <Cabinet x={x + w - 34} y={y + 52} />
-          <Plant x={x + 18} y={y + 60} />
-          <Plant x={x + 18} y={y + h - 30} />
+          <Cabinet x={x + w - 30} y={y + 52} w={20} />
+          <Plant x={x + 16} y={y + 64} />
+          <Plant x={x + 16} y={y + h - 34} />
         </g>
       );
-    case 'meeting':
+    case 'meeting': {
+      const seats = 6;
+      const tableW = seats * 34 + 20;
+      const tx = cx - tableW / 2;
       return (
         <g>
-          <WallScreen x={x + w / 2 - 50} y={y + 2} w={100} h={18} chart={1} />
-          <rect x={x + 30} y={y + 4} width={50} height={14} fill={C.paper} />
-          {Array.from({ length: 6 }, (_, i) => (
-            <OfficeChair key={`t${i}`} x={x + 92 + i * 36} y={y + 74} />
+          <WallScreen x={cx - 50} y={y + 2} w={100} h={18} chart={1} />
+          {/* Whiteboard with a few lines of notes. */}
+          <rect x={x + w - 82} y={y + 3} width={56} height={16} fill={C.paper} />
+          {[0, 1, 2].map((i) => (
+            <rect key={i} x={x + w - 78} y={y + 6 + i * 4} width={[30, 40, 22][i]} height="1" fill={['#3f6fd0', '#a8473d', '#2f8a5b'][i]} />
           ))}
-          <Box x={x + 70} y={y + 76} w={w - 140} d={36} h={8} top={C.deskTop} front={C.deskFront} />
-          <rect className="screen" x={x + w / 2 - 20} y={y + 92} width="40" height="3" fill="#5eead4" opacity="0.8" />
-          {Array.from({ length: 6 }, (_, i) => (
-            <g key={`b${i}`} transform={`rotate(180 ${x + 92 + i * 36} ${y + 132})`}>
-              <OfficeChair x={x + 92 + i * 36} y={y + 132} />
+          {Array.from({ length: seats }, (_, i) => (
+            <OfficeChair key={`t${i}`} x={tx + 27 + i * 34} y={y + 78} />
+          ))}
+          <Box x={tx} y={y + 80} w={tableW} d={40} h={8} top={C.deskTop} front={C.deskFront} />
+          <rect className="screen" x={cx - 20} y={y + 98} width="40" height="3" fill="#5eead4" opacity="0.8" />
+          {Array.from({ length: seats }, (_, i) => (
+            <g key={`b${i}`} transform={`rotate(180 ${tx + 27 + i * 34} ${y + 142})`}>
+              <OfficeChair x={tx + 27 + i * 34} y={y + 142} />
             </g>
           ))}
-          <Plant x={x + 18} y={y + 60} />
-          <Plant x={x + w - 18} y={y + 60} />
+          <g transform={`rotate(-90 ${tx - 12} ${y + 102})`}>
+            <OfficeChair x={tx - 12} y={y + 102} />
+          </g>
+          <g transform={`rotate(90 ${tx + tableW + 12} ${y + 102})`}>
+            <OfficeChair x={tx + tableW + 12} y={y + 102} />
+          </g>
+          <Plant x={x + 16} y={y + 64} />
+          <Plant x={x + w - 16} y={y + 64} />
+          <Plant x={x + w - 16} y={y + h - 34} />
         </g>
       );
+    }
     case 'approval':
+      // Your desk: where finished work waits for your sign-off.
       return (
         <g>
-          <Shelf x={x + 14} y={y + 50} />
-          <Cabinet x={x + 52} y={y + 58} />
-          <rect x={x + 110} y={y + 60} width={140} height={90} fill="url(#rug)" opacity="0.6" />
-          <Box x={x + 120} y={y + 70} w={120} d={26} h={10} top={C.deskTop} front={C.deskFront} />
-          <Monitor x={x + 166} y={y + 58} />
-          <rect x={x + 130} y={y + 78} width="16" height="11" fill={C.paper} />
-          <circle cx={x + 222} cy={y + 76} r="12" fill="url(#glow-warm)" shapeRendering="auto" />
-          <rect x={x + 218} y={y + 76} width="6" height="8" fill="#e8c46a" />
-          <Mug x={x + 150} y={y + 82} />
-          <Cabinet x={x + w - 34} y={y + 100} w={22} h={30} />
-          <OfficeChair x={x + 180} y={y + 66} />
-          <OfficeChair x={x + 160} y={y + 120} />
-          <OfficeChair x={x + 200} y={y + 120} />
-          <Plant x={x + w - 18} y={y + 60} />
+          <Shelf x={x + 12} y={y + 50} />
+          <rect x={cx - 60} y={y + 64} width={124} height={100} fill="url(#rug)" opacity="0.6" />
+          <OfficeChair x={cx + 2} y={y + 70} />
+          <Box x={cx - 50} y={y + 74} w={104} d={26} h={10} top={C.deskTop} front={C.deskFront} />
+          <Monitor x={cx - 10} y={y + 62} />
+          <rect x={cx - 42} y={y + 82} width="16" height="11" fill={C.paper} />
+          <circle cx={cx + 40} cy={y + 80} r="12" fill="url(#glow-warm)" shapeRendering="auto" />
+          <rect x={cx + 37} y={y + 79} width="6" height="8" fill="#e8c46a" />
+          <Mug x={cx + 22} y={y + 86} />
+          {[-18, 22].map((dx) => (
+            <g key={dx} transform={`rotate(180 ${cx + dx} ${y + 128})`}>
+              <OfficeChair x={cx + dx} y={y + 128} />
+            </g>
+          ))}
+          <Cabinet x={x + w - 30} y={y + 52} w={20} h={30} />
+          <Plant x={x + w - 16} y={y + h - 40} />
+        </g>
+      );
+    case 'rest':
+      return (
+        <g>
+          {BEDS.map((b, i) => (
+            <g key={i}>
+              <Box x={b.x} y={b.y} w={BED_W} d={48} h={6} top="#4a3a2e" front="#33281f" />
+              <rect x={b.x + 3} y={b.y + 3} width={BED_W - 6} height={42} fill="#d9dee8" />
+              <rect x={b.x + 7} y={b.y + 6} width={BED_W - 14} height={9} fill="#f4f6fa" />
+              <rect x={b.x + 3} y={b.y + 23} width={BED_W - 6} height={22} fill={['#4f68b0', '#a24f6c', '#3f8268', '#a8743a'][i]} />
+            </g>
+          ))}
+          <Plant x={cx} y={y + h - 26} small />
         </g>
       );
     case 'workspace':
+      // Open plan: storage along the left wall, double desks, and a low counter at the front.
       return (
         <g>
-          <Shelf x={x + 10} y={y + 26} />
-          <Cabinet x={x + 10} y={y + 120} />
+          <Shelf x={x + 8} y={y + 48} />
+          <Cabinet x={x + 10} y={y + 112} />
+          <Cabinet x={x + 10} y={y + 166} />
           {DESKS.map((d, i) => (
             <Desk key={i} x={d.x} y={d.y} variant={i} />
           ))}
-          <Plant x={x + w - 18} y={y + 50} />
-          <Plant x={x + w - 18} y={y + h - 28} />
-          <rect x={x + w - 46} y={y + 26} width="20" height="16" fill="#3a3f4a" />
-          <rect x={x + w - 43} y={y + 22} width="14" height="4" fill={C.paper} />
+          <Plant x={x + w - 16} y={y + 52} />
+          <rect x={x + w - 48} y={y + 30} width="22" height="16" fill="#3a3f4a" />
+          <rect x={x + w - 45} y={y + 26} width="16" height="4" fill={C.paper} />
+          <Box x={x + 56} y={y + h - 26} w={w - 76} d={10} h={8} top="#3d4250" front="#2a2e38" />
+          {[0.15, 0.5, 0.85].map((f) => (
+            <Plant key={f} x={x + 56 + (w - 76) * f} y={y + h - 34} small />
+          ))}
+          <Plant x={x + 16} y={y + h - 30} />
         </g>
       );
     case 'command':
       return (
         <g>
-          <circle cx={x + w / 2} cy={y + 120} r="130" fill="url(#glow-blue)" shapeRendering="auto" />
+          <circle cx={cx} cy={y + 170} r="190" fill="url(#glow-blue)" shapeRendering="auto" />
           {/* Room for the name chip on the left, then the dashboard across the rest of the back wall. */}
-          <DashboardWall x={x + 150} y={y + 4} w={w - 172} h={50} />
-          <Cabinet x={x + 40} y={y + 48} w={26} h={38} />
+          <DashboardWall x={x + 140} y={y + 4} w={w - 158} h={70} />
+          <Cabinet x={x + 12} y={y + 54} w={22} h={110} />
+          <Cabinet x={x + 12} y={y + 190} w={22} h={60} />
+          <Cabinet x={x + w - 34} y={y + 90} w={22} h={110} />
           {CONSOLES.map((c, i) => (
             <g key={i}>
-              <OfficeChair x={c.x + CONSOLE_W / 2} y={c.y - 4} />
-              <Box x={c.x} y={c.y} w={CONSOLE_W} d={20} h={10} top={C.metalTop} front={C.metalFront} />
-              {[0, 1, 2, 3, 4].map((k) => (
-                <Monitor key={k} x={c.x + 8 + k * 32} y={c.y - 10} w={26} h={15} color={(k + i) % 2 ? C.glowGreen : C.glow} />
+              {CONSOLE_SEATS.map((s) => (
+                <OfficeChair key={s} x={c.x + s} y={c.y - 4} />
               ))}
-              <rect x={c.x + 20} y={c.y + 13} width={CONSOLE_W - 40} height="4" fill="#2a2d34" />
+              <Box x={c.x} y={c.y} w={CONSOLE_W} d={22} h={12} top={C.metalTop} front={C.metalFront} />
+              {Array.from({ length: 9 }, (_, k) => (
+                <Monitor key={k} x={c.x + 8 + k * 34} y={c.y - 10} w={28} h={16} color={(k + i) % 3 === 0 ? C.glowGreen : C.glow} />
+              ))}
+              <rect x={c.x + 20} y={c.y + 15} width={CONSOLE_W - 40} height="4" fill="#2a2d34" />
+              {Array.from({ length: 12 }, (_, k) => (
+                <rect key={`l${k}`} className="led" x={c.x + 26 + k * 24} y={c.y + 26} width="3" height="2" fill={k % 4 ? C.glow : C.glowGreen} style={{ animationDelay: `${k * 0.2}s` }} />
+              ))}
             </g>
           ))}
-          <Cabinet x={x + 12} y={y + 70} w={18} h={80} />
-          <Cabinet x={x + w - 30} y={y + 70} w={18} h={80} />
+          <Plant x={x + 52} y={y + h - 34} />
+          <Plant x={x + w - 22} y={y + h - 34} />
         </g>
       );
     case 'lounge':
       return (
         <g>
-          <WallScreen x={x + w / 2 - 20} y={y + 2} w={80} h={19} chart={1} />
-          <rect x={x + 30} y={y + 58} width={w - 60} height={96} fill="url(#rug)" opacity="0.7" />
-          <Sofa x={x + 50} y={y + 46} w={w - 100} />
-          <Box x={x + w / 2 - 28} y={y + 92} w={56} d={20} h={6} top={C.deskTop} front={C.deskFront} />
-          <Mug x={x + w / 2 - 14} y={y + 98} />
-          <Plant x={x + w / 2 + 12} y={y + 96} small />
-          <Armchair x={x + 22} y={y + 88} />
-          <Armchair x={x + w - 46} y={y + 88} />
-          <FloorLamp x={x + 24} y={y + 48} />
-          <Shelf x={x + w - 42} y={y + 26} />
+          <WallScreen x={cx - 30} y={y + 2} w={80} h={19} chart={1} />
+          <rect x={x + 24} y={y + 56} width={w - 48} height={100} fill="url(#rug)" opacity="0.7" />
+          <Sofa x={x + 40} y={y + 46} w={w - 80} />
+          <Box x={cx - 26} y={y + 88} w={52} d={18} h={6} top={C.deskTop} front={C.deskFront} />
+          <Mug x={cx - 14} y={y + 93} />
+          <Plant x={cx + 12} y={y + 92} small />
+          <Armchair x={x + 12} y={y + 84} />
+          <Armchair x={x + w - 36} y={y + 84} />
+          <FloorLamp x={x + 22} y={y + 46} />
+          <Shelf x={x + w - 40} y={y + 26} />
           <Plant x={x + 16} y={y + h - 26} />
         </g>
       );
@@ -557,71 +638,58 @@ function Furniture({ room }: { room: Room }) {
           <rect x={x + 68} y={y + 27} width="4" height="4" fill="#ef4444" />
           <rect x={x + 92} y={y + 24} width="10" height="10" fill="#1c1f26" />
           <rect x={x + 116} y={y + 26} width="22" height="10" fill="#7aa7d8" opacity="0.6" />
-          <Box x={x + 46} y={y + 102} w={92} d={24} h={8} top={C.deskTop} front={C.deskFront} />
+          <Mug x={x + 150} y={y + 32} />
+          <Box x={cx - 46} y={y + 96} w={92} d={24} h={8} top={C.deskTop} front={C.deskFront} />
+          <Plant x={cx} y={y + 100} small />
           {[0, 1, 2].map((i) => (
-            <rect key={i} x={x + 56 + i * 30} y={y + 136} width="10" height="8" fill="#2b2f39" />
+            <rect key={i} x={cx - 36 + i * 30} y={y + 132} width="10" height="8" fill="#2b2f39" />
           ))}
+          <Plant x={x + w - 16} y={y + h - 34} />
         </g>
       );
     case 'lab':
+      // Test bench: where builds and checks run.
       return (
         <g>
-          <Box x={x + 16} y={y + 44} w={w - 32} d={20} h={10} top="#c9cfd8" front="#6f7885" />
-          {[0, 1, 2, 3].map((i) => (
+          <Box x={x + 76} y={y + 36} w={w - 92} d={18} h={8} top="#c9cfd8" front="#6f7885" />
+          {[0, 1, 2].map((i) => (
             <g key={i}>
-              <rect x={x + 34 + i * 38} y={y + 32} width="4" height="10" fill="#cbd5e1" />
-              <rect x={x + 30 + i * 38} y={y + 42} width="12" height="8" fill={['#34d399', '#60a5fa', '#f472b6', '#facc15'][i]} opacity="0.85" />
+              <rect x={x + 88 + i * 22} y={y + 26} width="4" height="10" fill="#cbd5e1" />
+              <rect x={x + 84 + i * 22} y={y + 36} width="12" height="8" fill={['#34d399', '#60a5fa', '#f472b6'][i]} opacity="0.85" />
             </g>
           ))}
-          <Box x={x + 16} y={y + 100} w={w - 32} d={20} h={10} top="#c9cfd8" front="#6f7885" />
-          <Monitor x={x + 40} y={y + 88} />
-          <rect x={x + 100} y={y + 94} width="12" height="18" fill="#2a2e38" />
-          <rect x={x + 102} y={y + 88} width="8" height="6" fill="#59647a" />
-          <rect x={x + 130} y={y + 92} width={36} height={18} fill={C.paper} />
-          <OfficeChair x={x + 52} y={y + 140} />
+          <Monitor x={x + w - 50} y={y + 26} w={24} h={14} />
+          <Cabinet x={x + 12} y={y + 50} w={22} h={30} />
+          <Plant x={x + w - 14} y={y + 72} small />
         </g>
       );
     case 'server':
       return (
         <g>
-          {[0, 1].map((i) => (
+          {[0, 1, 2].map((i) => (
             <g key={i}>
-              <Box x={x + 16 + i * 56} y={y + 28} w={42} d={8} h={100} top="#3a4252" front="#14171e" />
-              {Array.from({ length: 9 }, (_, j) => (
+              <Box x={x + 104 + i * 42} y={y + 24} w={34} d={6} h={58} top="#3a4252" front="#14171e" />
+              {Array.from({ length: 5 }, (_, j) => (
                 <g key={j}>
-                  <rect x={x + 20 + i * 56} y={y + 40 + j * 10} width="34" height="6" fill="#20242d" />
+                  <rect x={x + 107 + i * 42} y={y + 34 + j * 10} width="28" height="6" fill="#20242d" />
                   <rect
                     className="led"
-                    x={x + 22 + i * 56}
-                    y={y + 42 + j * 10}
+                    x={x + 109 + i * 42}
+                    y={y + 36 + j * 10}
                     width="2"
                     height="2"
                     fill={(i + j) % 4 === 0 ? '#f59e0b' : C.glowGreen}
-                    style={{ animationDelay: `${((i * 9 + j) % 7) * 0.23}s` }}
+                    style={{ animationDelay: `${((i * 5 + j) % 7) * 0.23}s` }}
                   />
                 </g>
               ))}
             </g>
           ))}
-          {/* Operator desk in front of the racks. */}
-          <Box x={x + 66} y={y + 136} w={60} d={12} h={8} top={C.metalTop} front={C.metalFront} />
-          <Monitor x={x + 70} y={y + 128} w={22} h={13} color={C.glowGreen} />
-          <Monitor x={x + 98} y={y + 128} w={22} h={13} />
-          <circle cx={x + 30} cy={y + 150} r="16" fill="url(#glow-warm)" shapeRendering="auto" />
-          <Plant x={x + 24} y={y + 146} small />
-        </g>
-      );
-    case 'rest':
-      return (
-        <g>
-          {BEDS.map((b, i) => (
-            <g key={i}>
-              <Box x={b.x} y={b.y} w={50} d={50} h={6} top="#4a3a2e" front="#33281f" />
-              <rect x={b.x + 3} y={b.y + 3} width={44} height={44} fill="#d9dee8" />
-              <rect x={b.x + 9} y={b.y + 6} width={32} height={10} fill="#f4f6fa" />
-              <rect x={b.x + 3} y={b.y + 24} width={44} height={23} fill={['#4f68b0', '#a24f6c', '#3f8268', '#a8743a'][i]} />
-            </g>
-          ))}
+          {/* Operator desk beside the racks. */}
+          <Box x={x + 14} y={y + 58} w={64} d={12} h={8} top={C.metalTop} front={C.metalFront} />
+          <Monitor x={x + 18} y={y + 50} w={24} h={13} color={C.glowGreen} />
+          <Monitor x={x + 48} y={y + 50} w={24} h={13} />
+          <circle cx={x + 26} cy={y + 90} r="16" fill="url(#glow-warm)" shapeRendering="auto" />
         </g>
       );
   }
