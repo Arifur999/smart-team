@@ -1,4 +1,4 @@
-import type { AgentStats, CreateTaskInput, TaskDetail, TaskSummary } from '@smart-team/shared';
+import type { AgentStats, CreateTaskInput, RoleSkills, TaskDetail, TaskSummary } from '@smart-team/shared';
 import { hubUrl } from './hub';
 
 /** The hub's error message when it sent one, so forms can show it as is. */
@@ -25,4 +25,5 @@ export const api = {
   followUp: (id: string, prompt: string) => request<void>(`/tasks/${id}/messages`, { method: 'POST', body: JSON.stringify({ prompt }) }),
   cancel: (id: string) => request<void>(`/tasks/${id}/cancel`, { method: 'POST' }),
   agentStats: () => request<AgentStats[]>('/agents/stats'),
+  skillRoles: () => request<RoleSkills[]>('/skills/roles'),
 };

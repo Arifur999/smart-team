@@ -1,11 +1,12 @@
 'use client';
 
-import { TEAMS, type TaskSummary, type TeamId } from '@smart-team/shared';
+import { skillRoleKey, TEAMS, type TaskSummary, type TeamId } from '@smart-team/shared';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useAgentStats } from '@/hooks/useAgentStats';
 import { useDevices } from '@/hooks/useDevices';
 import { useOfficeTeam } from '@/hooks/useOfficeTeam';
+import { useSkillRoles } from '@/hooks/useSkillRoles';
 import { useTasks } from '@/hooks/useTasks';
 import { useTeamChat } from '@/hooks/useTeamChat';
 import { officeMembers } from '@/lib/office';
@@ -30,6 +31,7 @@ export function AgentOffice() {
   const [showTeam, setShowTeam] = useState(true);
   const [creating, setCreating] = useState(false);
   const stats = useAgentStats();
+  const skillRoles = useSkillRoles();
   const chat = useTeamChat(teamId, tasks);
 
   const team = TEAMS.find((t) => t.id === teamId)!;
@@ -134,7 +136,12 @@ export function AgentOffice() {
           </div>
           <div className="min-h-0 flex-1">
             {panel === 'member' && selected ? (
-              <MemberDetail member={selected} stats={stats[selected.id]} onClose={() => setPanel('terminal')} />
+              <MemberDetail
+                member={selected}
+                stats={stats[selected.id]}
+                skills={skillRoles[skillRoleKey(selected.teamId, selected.role)]}
+                onClose={() => setPanel('terminal')}
+              />
             ) : (
               <OfficeTerminal task={focus} />
             )}

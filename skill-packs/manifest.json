@@ -1,0 +1,35 @@
+{
+  "$comment": "Which Claude Code skills each role gets. Keys are \"planner\" or \"<team>.<role>\" (leader, worker, reference, qa). A trailing * matches every skill with that prefix. Skills are looked up in skill-packs/skills first, then in the hub PC's SKILL_DIRS (default ~/.claude/skills). Missing skills are reported on the dashboard and skipped.",
+  "roles": {
+    "planner": ["problem-solving"],
+
+    "nextDev.leader": ["problem-solving", "db-design", "arif-code-review", "clean-refactor"],
+    "nextDev.worker": [
+      "nextjs-app-setup",
+      "nextjs-feature",
+      "dashboard-ui",
+      "nestjs-module",
+      "express-module",
+      "prisma-schema",
+      "docker-deploy",
+      "debugging",
+      "clean-refactor",
+      "ui-ux-visual-designer"
+    ],
+    "nextDev.qa": ["arif-code-review", "security-audit", "debugging"],
+
+    "nextEditor.leader": ["video-production"],
+    "nextEditor.worker": ["hyperframes", "hyperframes-cli", "hyperframes-registry", "media-use", "remotion-*"],
+    "nextEditor.reference": ["media-use"],
+    "nextEditor.qa": [],
+
+    "nextDesign.leader": ["ui-ux-visual-designer", "brand-identity-designer"],
+    "nextDesign.worker": ["ui-ux-visual-designer", "dashboard-ui", "brand-identity-designer"],
+    "nextDesign.reference": [],
+    "nextDesign.qa": [],
+
+    "NextMarketer.leader": [],
+    "NextMarketer.worker": [],
+    "NextMarketer.qa": []
+  }
+}

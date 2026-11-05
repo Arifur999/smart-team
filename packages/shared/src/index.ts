@@ -267,11 +267,39 @@ export interface TaskLogEvent {
   lines: TerminalLine[];
 }
 
+// ---- Skill packs ----
+
+/** A skill pinned to the exact content the hub has: the version is a hash of its files. */
+export interface SkillRef {
+  name: string;
+  version: string;
+}
+
+export interface SkillBundle extends SkillRef {
+  files: { path: string; base64: string }[];
+}
+
+/** One role's skills as the dashboard shows them; version is null when the hub cannot find the skill. */
+export interface RoleSkills {
+  role: string;
+  skills: { name: string; version: string | null }[];
+}
+
+/** Header agents send to download skill bundles over HTTP. */
+export const AGENT_TOKEN_HEADER = 'x-agent-token';
+
+/** The skill pack key of a team member: "planner" for the plan agent, otherwise "<team>.<role>". */
+export function skillRoleKey(team: TeamId | null, role: MemberRole): string {
+  return role === 'planner' || !team ? role : `${team}.${role}`;
+}
+
 export interface RunStartPayload {
   runId: string;
   prompt: string;
   workDir: string;
   mode: RunMode;
+  /** Skills to load for this run; the agent downloads any it does not have cached. */
+  skills: SkillRef[];
   /** Continue this Claude Code session instead of starting a new one. */
   resumeSessionId?: string;
 }

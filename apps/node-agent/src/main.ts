@@ -13,11 +13,13 @@ import { io } from 'socket.io-client';
 import { ClaudeRunner } from './claude-runner.js';
 import { loadConfig } from './config.js';
 import { detectTools, folderResources } from './resources.js';
+import { SkillCache } from './skill-cache.js';
 
-const AGENT_VERSION = '0.2.0';
+const AGENT_VERSION = '0.3.0';
 
 const config = loadConfig();
 const runner = new ClaudeRunner(config.claude, () => config.folders.map((f) => f.path));
+const skills = new SkillCache(config.hubUrl, config.token, config.cacheDir);
 
 async function buildPayload(): Promise<RegisterPayload> {
   const tools = await detectTools();
@@ -48,19 +50,46 @@ socket.on('connect', async () => {
   heartbeat = setInterval(() => socket.emit(AgentEvents.heartbeat), HEARTBEAT_MS);
 });
 
-socket.on(AgentEvents.runStart, (run: RunStartPayload) => {
+/** A run whose skills are still downloading; Claude has not started yet, so cancelling just marks it. */
+let preparing: { runId: string; cancelled: boolean } | undefined;
+
+socket.on(AgentEvents.runStart, async (run: RunStartPayload) => {
   console.log(`Starting ${run.mode.toLowerCase()} run ${run.runId} in ${run.workDir}`);
-  runner.start(run, {
-    onLogs: (entries, usage) => socket.emit(AgentEvents.runLog, { runId: run.runId, entries, ...(usage ? { usage } : {}) } satisfies RunLogPayload),
-    onFinished: (result) => {
-      console.log(`Run ${run.runId} ended: ${result.status}`);
-      socket.emit(AgentEvents.runFinished, { runId: run.runId, ...result } satisfies RunFinishedPayload);
+  const finish = (result: Omit<RunFinishedPayload, 'runId'>) => {
+    skills.removePlugin(run.runId);
+    console.log(`Run ${run.runId} ended: ${result.status}`);
+    socket.emit(AgentEvents.runFinished, { runId: run.runId, ...result } satisfies RunFinishedPayload);
+  };
+
+  preparing = { runId: run.runId, cancelled: false };
+  let pluginDir: string | null = null;
+  try {
+    pluginDir = await skills.buildPlugin(run.runId, run.skills ?? []);
+  } catch (error) {
+    preparing = undefined;
+    return finish({ status: 'FAILED', outcome: `Could not load the team's skills: ${(error as Error).message}` });
+  }
+  const cancelled = preparing?.cancelled;
+  preparing = undefined;
+  if (cancelled) return finish({ status: 'CANCELLED', outcome: 'Cancelled from the dashboard.' });
+
+  const names = (run.skills ?? []).map((s) => s.name);
+  runner.start(
+    run,
+    {
+      onLogs: (entries, usage) => socket.emit(AgentEvents.runLog, { runId: run.runId, entries, ...(usage ? { usage } : {}) } satisfies RunLogPayload),
+      onFinished: finish,
     },
-  });
+    {
+      ...(pluginDir ? { pluginDir } : {}),
+      notes: [names.length ? `Loaded ${names.length} team skills: ${names.join(', ')}` : 'No team skills for this run.'],
+    },
+  );
 });
 
 socket.on(AgentEvents.runCancel, ({ runId }: RunCancelPayload) => {
-  if (runner.cancel(runId)) console.log(`Cancelling run ${runId}`);
+  if (preparing?.runId === runId) preparing.cancelled = true;
+  else if (runner.cancel(runId)) console.log(`Cancelling run ${runId}`);
 });
 
 socket.on('disconnect', (reason) => {

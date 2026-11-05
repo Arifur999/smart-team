@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DevicesModule } from '../devices/devices.module.js';
+import { SkillsModule } from '../skills/skills.module.js';
 import { AgentStatsController } from '../tasks/agent-stats.controller.js';
 import { TasksController } from '../tasks/tasks.controller.js';
 import { TasksService } from '../tasks/tasks.service.js';
@@ -14,7 +15,7 @@ import { RunDispatcher } from './run-dispatcher.js';
  * Kept in one module because these pieces call each other both ways.
  */
 @Module({
-  imports: [DevicesModule],
+  imports: [DevicesModule, SkillsModule],
   controllers: [TasksController, AgentStatsController],
   providers: [TasksService, AgentRegistry, DashboardGateway, AgentsGateway, DevicesSweeper, RunDispatcher],
 })

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AgentEvents, type RunCancelPayload, type RunFinishedPayload, type RunLogPayload, type RunStartPayload } from '@smart-team/shared';
+import { SkillsService } from '../skills/skills.service.js';
 import { TasksService } from '../tasks/tasks.service.js';
 import { AgentRegistry } from './agent-registry.js';
 import { DashboardGateway } from './dashboard.gateway.js';
@@ -15,6 +16,7 @@ export class RunDispatcher {
     private readonly tasks: TasksService,
     private readonly agents: AgentRegistry,
     private readonly dashboard: DashboardGateway,
+    private readonly skills: SkillsService,
   ) {}
 
   /** Starts the device's next queued run if it is online and idle. Safe to call any time. */
@@ -74,11 +76,14 @@ export class RunDispatcher {
     const run = await this.tasks.claimNextQueued(deviceId);
     if (!run) return;
 
+    // Re-read the skill folders so a skill edited on the hub reaches the very next run.
+    this.skills.reload();
     const payload: RunStartPayload = {
       runId: run.id,
       prompt: run.prompt,
       workDir: run.workDir,
       mode: run.mode,
+      skills: this.skills.forRun(run.team, run.mode),
       ...(run.resumeSessionId ? { resumeSessionId: run.resumeSessionId } : {}),
     };
     if (!this.agents.send(deviceId, AgentEvents.runStart, payload)) {

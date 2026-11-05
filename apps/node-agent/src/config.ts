@@ -1,11 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { hostname } from 'node:os';
+import { homedir, hostname } from 'node:os';
+import { join } from 'node:path';
 import { z } from 'zod';
 
 const envSchema = z.object({
   HUB_URL: z.url(),
   AGENT_TOKEN: z.string().min(24, 'AGENT_TOKEN must match the hub and be at least 24 characters'),
   DEVICE_NAME: z.string().trim().max(60).optional(),
+  /** Where downloaded skills and per-run plugin folders live. Outside every project on purpose. */
+  CACHE_DIR: z.string().default(join(homedir(), '.smart-team', 'cache')),
 });
 
 const folderSchema = z.object({
@@ -36,6 +39,7 @@ export interface AgentConfig {
   hubUrl: string;
   token: string;
   deviceName: string;
+  cacheDir: string;
   folders: FolderConfig[];
   claude: ClaudeConfig;
 }
@@ -54,6 +58,7 @@ export function loadConfig(configPath = 'agent.config.json'): AgentConfig {
     hubUrl: env.HUB_URL,
     token: env.AGENT_TOKEN,
     deviceName: env.DEVICE_NAME || hostname(),
+    cacheDir: env.CACHE_DIR,
     folders: file.folders,
     claude: file.claude,
   };

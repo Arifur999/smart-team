@@ -12,6 +12,11 @@ describe('buildClaudeArgs', () => {
     expect(args).not.toContain('--allowedTools');
   });
 
+  it('loads the run skills through a plugin folder when there is one', () => {
+    expect(buildClaudeArgs({ mode: 'PLAN' }, claude, 'C:\\cache\\runs\\r1')).toEqual(expect.arrayContaining(['--plugin-dir', 'C:\\cache\\runs\\r1']));
+    expect(buildClaudeArgs({ mode: 'PLAN' }, claude)).not.toContain('--plugin-dir');
+  });
+
   it('runs approved work with the configured mode, tools and session', () => {
     const args = buildClaudeArgs({ mode: 'EXECUTE', resumeSessionId: 'abc' }, { ...claude, maxTurns: 40 });
     expect(args).toEqual(

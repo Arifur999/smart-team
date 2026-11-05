@@ -28,9 +28,17 @@ export interface RunCallbacks {
   onFinished(result: Omit<RunFinishedPayload, 'runId'>): void;
 }
 
+export interface RunOptions {
+  /** A plugin folder with the run's skills, from SkillCache. */
+  pluginDir?: string;
+  /** Lines shown in the terminal before Claude starts, e.g. which skills were loaded. */
+  notes?: string[];
+}
+
 /** Builds the Claude Code command line for one run. The prompt goes over stdin, never on the command line. */
-export function buildClaudeArgs(run: Pick<RunStartPayload, 'mode' | 'resumeSessionId'>, claude: ClaudeConfig): string[] {
+export function buildClaudeArgs(run: Pick<RunStartPayload, 'mode' | 'resumeSessionId'>, claude: ClaudeConfig, pluginDir?: string): string[] {
   const args = ['-p', '--output-format', 'stream-json', '--verbose'];
+  if (pluginDir) args.push('--plugin-dir', pluginDir);
   if (run.mode === 'PLAN') {
     args.push('--permission-mode', 'plan', '--append-system-prompt', PLAN_SYSTEM_PROMPT);
   } else {
@@ -55,7 +63,7 @@ export class ClaudeRunner {
     return this.current !== undefined;
   }
 
-  start(run: RunStartPayload, callbacks: RunCallbacks): void {
+  start(run: RunStartPayload, callbacks: RunCallbacks, options: RunOptions = {}): void {
     let seq = FIRST_AGENT_SEQ;
     const now = () => new Date().toISOString();
     const reject = (text: string) => {
@@ -67,7 +75,11 @@ export class ClaudeRunner {
     const cwd = resolveAllowedDir(run.workDir, this.sharedFolders());
     if (!cwd) return reject(`The folder ${run.workDir} is not shared on this PC, or does not exist.`);
 
-    const child = spawn(this.claude.command, buildClaudeArgs(run, this.claude), { cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(this.claude.command, buildClaudeArgs(run, this.claude, options.pluginDir), {
+      cwd,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
     const state = { runId: run.runId, child, cancelled: false };
     this.current = state;
 
@@ -84,6 +96,7 @@ export class ClaudeRunner {
       callbacks.onLogs(pending, usage);
       pending = [];
     };
+    for (const note of options.notes ?? []) push('status', note);
     const timer = setInterval(flush, FLUSH_MS);
 
     createInterface({ input: child.stdout! }).on('line', (line) => {

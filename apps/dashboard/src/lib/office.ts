@@ -65,6 +65,8 @@ export interface Activity {
 
 export interface OfficeMember extends TeamMember {
   color: string;
+  /** Null for leadership, who work for every team. */
+  teamId: TeamId | null;
   teamLabel: string;
   activity: Activity;
   position: Point;
@@ -120,8 +122,8 @@ export function officeMembers(teamId: TeamId, tasks: TaskSummary[]): OfficeMembe
 
   // Leadership shows in every team's office; the plan agent plans for all of them.
   const people = [
-    ...LEADERSHIP.map((m) => ({ ...m, color: LEADERSHIP_COLOR, teamLabel: 'Leadership', activity: activityOf(m) })),
-    ...team.members.map((m) => ({ ...m, color: team.color, teamLabel: team.label, activity: activityOf(m) })),
+    ...LEADERSHIP.map((m) => ({ ...m, color: LEADERSHIP_COLOR, teamId: null, teamLabel: 'Leadership', activity: activityOf(m) })),
+    ...team.members.map((m) => ({ ...m, color: team.color, teamId: team.id, teamLabel: team.label, activity: activityOf(m) })),
   ];
 
   return placeInRooms(people);

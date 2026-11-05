@@ -31,7 +31,15 @@ const ROLE_TEXT: Record<string, string> = {
   qa: 'Checks the team’s work with real tests and checklists.',
 };
 
-export function MemberDetail({ member, stats, onClose }: { member: OfficeMember; stats?: AgentStats; onClose: () => void }) {
+interface Props {
+  member: OfficeMember;
+  stats?: AgentStats;
+  /** The member's skills from the hub; a null version means the hub could not find that skill. */
+  skills?: { name: string; version: string | null }[];
+  onClose: () => void;
+}
+
+export function MemberDetail({ member, stats, skills = [], onClose }: Props) {
   const room = ROOMS.find((r) => r.id === member.activity.room);
   const now = useNow(1_000);
   const runningFor = stats?.currentRunStartedAt && now ? (now - new Date(stats.currentRunStartedAt).getTime()) / 1000 : null;
@@ -76,6 +84,8 @@ export function MemberDetail({ member, stats, onClose }: { member: OfficeMember;
           </div>
         )}
 
+        <SkillList skills={skills} />
+
         {member.activity.detail && (
           <p className="mt-3 truncate text-sm">
             <span className="text-muted">Task: </span>
@@ -90,6 +100,41 @@ export function MemberDetail({ member, stats, onClose }: { member: OfficeMember;
         )}
       </div>
     </aside>
+  );
+}
+
+/** The skills this member's runs load, with the exact version the hub has. */
+function SkillList({ skills }: { skills: { name: string; version: string | null }[] }) {
+  const missing = skills.filter((s) => !s.version).length;
+  return (
+    <section className="mt-3" aria-label="Skills">
+      <h3 className="flex items-baseline justify-between text-[11px] font-medium uppercase tracking-wide text-muted">
+        Skills
+        {skills.length > 0 && (
+          <span className="normal-case tracking-normal">
+            {skills.length - missing} loaded{missing > 0 ? ` · ${missing} missing on the hub` : ''}
+          </span>
+        )}
+      </h3>
+      {skills.length === 0 ? (
+        <p className="mt-1 text-xs text-muted">No skills for this role yet.</p>
+      ) : (
+        <ul className="mt-1.5 flex flex-wrap gap-1">
+          {skills.map((s) => (
+            <li
+              key={s.name}
+              title={s.version ? `${s.name} · version ${s.version}` : `${s.name} is not on the hub PC yet`}
+              className={`rounded-md border px-1.5 py-0.5 font-mono text-[11px] ${
+                s.version ? 'border-line bg-chip text-foreground' : 'border-danger/40 bg-danger-soft text-danger line-through'
+              }`}
+            >
+              {s.name}
+              {s.version && <span className="ml-1 text-muted">{s.version.slice(0, 6)}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

@@ -52,6 +52,7 @@ export const APPROVAL_PROMPT = 'The plan is approved. Carry it out now, step by 
 export interface StartableRun {
   id: string;
   taskId: string;
+  team: TeamId;
   prompt: string;
   workDir: string;
   mode: RunMode;
@@ -130,7 +131,7 @@ export class TasksService {
 
     const next = await this.prisma.run.findFirst({
       where: { deviceId, status: 'QUEUED' },
-      select: { id: true, taskId: true, workDir: true, prompt: true, mode: true },
+      select: { id: true, taskId: true, workDir: true, prompt: true, mode: true, task: { select: { team: true } } },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
     if (!next) return null;
@@ -148,7 +149,8 @@ export class TasksService {
       orderBy: NEWEST_FIRST,
     });
 
-    return { ...next, ...(previous?.sessionId ? { resumeSessionId: previous.sessionId } : {}) };
+    const { task, ...run } = next;
+    return { ...run, team: task.team, ...(previous?.sessionId ? { resumeSessionId: previous.sessionId } : {}) };
   }
 
   /** The run's task id, but only when the run belongs to this device. Agents may only report on their own runs. */
