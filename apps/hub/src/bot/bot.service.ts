@@ -16,6 +16,8 @@ import { botTools } from './bot-tools.js';
 const HISTORY = 30;
 /** Most tool rounds for one reply, so a confused loop cannot run up the bill. */
 const MAX_TOOL_ROUNDS = 10;
+/** Starts the reply saved when the Claude API call fails. Such exchanges are left out of the history Claude sees. */
+const FAILED_REPLY = 'I could not get an answer from Claude: ';
 
 const MESSAGE_SELECT = { id: true, role: true, text: true, team: true, actions: true, createdAt: true } satisfies Prisma.BotMessageSelect;
 type MessageRow = Prisma.BotMessageGetPayload<{ select: typeof MESSAGE_SELECT }>;
@@ -64,7 +66,7 @@ export class BotService {
       reply = await this.ask(this.client, history, userTurnText(text, input.team ?? null), actions);
     } catch (error) {
       this.logger.warn(`Claude API call failed: ${(error as Error).message}`);
-      reply = `I could not get an answer from Claude: ${describeError(error)}`;
+      reply = `${FAILED_REPLY}${describeError(error)}`;
     }
 
     const answer = await this.save('BOT', reply, team, actions);
@@ -124,9 +126,13 @@ export class BotService {
     return text || (actions.length > 0 ? 'Done.' : 'I have no answer for that.');
   }
 
-  /** Earlier messages as Claude turns: plain text, starting with one of yours. */
+  /** Earlier messages as Claude turns: plain text, starting with one of yours, without exchanges where the API failed. */
   private async history(): Promise<BetaMessageParam[]> {
-    const rows = await this.messages(HISTORY);
+    const all = await this.messages(HISTORY);
+    const rows = all.filter((r, i) => {
+      const reply = r.role === 'YOU' ? all[i + 1] : r;
+      return !(reply?.role === 'BOT' && reply.text.startsWith(FAILED_REPLY));
+    });
     const first = rows.findIndex((r) => r.role === 'YOU');
     if (first < 0) return [];
     return rows.slice(first).map((r) =>
