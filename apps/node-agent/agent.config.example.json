@@ -1,0 +1,7 @@
+{
+  "folders": [
+    { "name": "Projects", "path": "D:\\dev\\projects", "tags": ["code"] },
+    { "name": "Sound effects", "path": "D:\\media\\sfx", "tags": ["sfx", "audio"] },
+    { "name": "VFX references", "path": "D:\\media\\vfx-refs", "tags": ["vfx-reference", "video"] }
+  ]
+}

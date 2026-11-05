@@ -1,0 +1,57 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+}
+
+enum ResourceKind {
+  TOOL
+  FOLDER
+}
+
+/// One PC running the node agent. `name` is the agent's stable identity across reconnects.
+model Device {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  name         String       @unique
+  hostname     String
+  ip           String?
+  platform     String
+  agentVersion String
+  status       DeviceStatus @default(OFFLINE)
+  lastSeenAt   DateTime     @db.Timestamptz(3)
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @db.Timestamptz(3)
+
+  resources Resource[]
+
+  @@index([status, lastSeenAt])
+  @@map("devices")
+}
+
+/// What a PC offers. Replaced as a whole every time its agent registers.
+model Resource {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  deviceId  String       @db.Uuid
+  kind      ResourceKind
+  name      String
+  path      String?
+  version   String?
+  tags      String[]
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @db.Timestamptz(3)
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, kind])
+  @@map("resources")
+}

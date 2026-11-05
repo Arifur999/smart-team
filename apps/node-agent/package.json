@@ -1,0 +1,24 @@
+{
+  "name": "@smart-team/node-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "dev": "tsc -p tsconfig.json && concurrently -k -n tsc,agent \"tsc -p tsconfig.json -w --preserveWatchOutput\" \"node --watch dist/main.js\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@smart-team/shared": "*",
+    "socket.io-client": "4.8.4",
+    "zod": "4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "concurrently": "9.2.1",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  }
+}

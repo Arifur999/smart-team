@@ -1,0 +1,17 @@
+{
+  "name": "smart-team",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @smart-team/shared",
+    "db:up": "docker compose up -d",
+    "dev:hub": "npm run dev -w @smart-team/hub",
+    "dev:agent": "npm run dev -w @smart-team/node-agent",
+    "dev:dashboard": "npm run dev -w @smart-team/dashboard",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  }
+}
