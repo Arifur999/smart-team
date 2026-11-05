@@ -6,7 +6,7 @@
   ],
   "claude": {
     "command": "claude",
-    "permissionMode": "acceptEdits",
+    "permissionMode": "bypassPermissions",
     "allowedTools": ["Bash", "PowerShell", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch", "Skill", "Task", "TodoWrite", "NotebookEdit"],
     "maxTurns": 200
   }

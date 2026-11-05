@@ -25,6 +25,18 @@ const INTAKE_SYSTEM_PROMPT = [
   'Your final reply must be exactly the JSON object the user message asks for, with no text before or after it.',
 ].join(' ');
 
+/**
+ * Added to work runs. Nobody watches a run as it goes: the user gives requirements, the team does the rest.
+ * So the agent must get past errors itself instead of ending the run with a question or a command to type.
+ */
+const WORK_SYSTEM_PROMPT = [
+  'You are a member of an autonomous team working unattended on this PC. Nobody watches the terminal: no one can answer a question, approve a command or run anything for you during this run.',
+  'You have full access to this PC. Install missing tools or packages, run any command you need, and change your approach when something does not work.',
+  'When a command or step fails, read the error, fix the cause and carry on. Retry with a different method if needed. Never stop to ask for permission, never ask the user to run a command, and never tell them to change settings such as /permissions.',
+  `This PC runs ${process.platform === 'win32' ? 'Windows: use Windows paths, and keep temporary files inside the working folder, not /tmp' : process.platform}.`,
+  'Only end the run early if the work truly cannot continue without information that only the user has; then say exactly what is missing. Otherwise finish the work and summarize what you did.',
+].join(' ');
+
 const FLUSH_MS = 250;
 const STDERR_KEEP = 2_000;
 
@@ -60,7 +72,7 @@ export function buildClaudeArgs(
   } else if (run.mode === 'PLAN') {
     args.push('--permission-mode', 'plan', '--append-system-prompt', PLAN_SYSTEM_PROMPT);
   } else {
-    args.push('--permission-mode', claude.permissionMode);
+    args.push('--permission-mode', claude.permissionMode, '--append-system-prompt', WORK_SYSTEM_PROMPT);
     if (claude.allowedTools.length > 0) args.push('--allowedTools', ...claude.allowedTools);
   }
   if (claude.maxTurns) args.push('--max-turns', String(claude.maxTurns));

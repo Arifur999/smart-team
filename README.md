@@ -91,7 +91,7 @@ npm run build:shared
 1. Create `apps/node-agent/.env` from `.env.example`. Set `HUB_URL` to `http://<hub-pc-ip>:4000` and `AGENT_TOKEN` to the shared token. Set `DEVICE_NAME` if you want a friendlier name than the hostname (it must be unique per PC).
 2. Copy `apps/node-agent/agent.config.example.json` to `agent.config.json`:
    - `folders`: the folders this PC shares, with tags such as `sfx`, `vfx-reference` or `code`. Tasks can only run inside these, and team leaders will route work by the tags.
-   - `claude.permissionMode`: how approved work runs. `acceptEdits` (default) lets Claude edit files without asking; shell commands still need to be listed in `allowedTools`.
+   - `claude.permissionMode`: how approved work runs. The example uses `bypassPermissions`: agents work unattended, so nothing may stop a run to wait for an "allow" click, and they fix their own errors. Use `acceptEdits` on a PC you want locked down; then shell commands must be listed in `allowedTools`. Plans and brief checks always run read-only, whatever this says.
    - `claude.allowedTools`: what approved work may use without asking. The example gives full access (any shell command, files, web), so agents install tools, run builds and fix their own errors without stopping; nobody is there to click "allow" for a headless run. To lock a PC down, list only specific commands, e.g. `"Bash(npm test:*)"`; anything not listed is refused and shows as an error in the terminal.
    - `claude.maxTurns`: optional cap on how long one run may go. Video and design work needs many steps; 200 is a sensible ceiling.
    - The agent reads this file when it starts: restart it after a change, but not while a task is running, or that run fails.
