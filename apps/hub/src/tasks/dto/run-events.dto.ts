@@ -1,6 +1,7 @@
 import {
   LOG_KINDS,
   MAX_LOG_TEXT,
+  MAX_OUTCOME_CHARS,
   type FinishedRunStatus,
   type LogEntry,
   type LogKind,
@@ -92,7 +93,7 @@ export class RunFinishedDto implements RunFinishedPayload {
 
   @IsOptional()
   @IsString()
-  @MaxLength(20_000)
+  @MaxLength(MAX_OUTCOME_CHARS)
   outcome?: string;
 
   @IsOptional()

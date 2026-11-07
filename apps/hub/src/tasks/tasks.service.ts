@@ -247,7 +247,7 @@ export class TasksService {
   }
 
   /** Fails every run the device was in the middle of. Returns the affected task ids. */
-  async failRunning(deviceId: string, reason: string, now = new Date()): Promise<string[]> {
+  async failRunning(deviceId: string, reason: string, now = new Date()): Promise<{ runId: string; taskId: string }[]> {
     const running = await this.prisma.run.findMany({ where: { deviceId, status: 'RUNNING' }, select: { id: true, taskId: true } });
     if (running.length === 0) return [];
 
@@ -255,7 +255,16 @@ export class TasksService {
       where: { id: { in: running.map((r) => r.id) }, status: 'RUNNING' },
       data: { status: 'FAILED', outcome: reason, finishedAt: now },
     });
-    return running.map((r) => r.taskId);
+    return running.map((r) => ({ runId: r.id, taskId: r.taskId }));
+  }
+
+  /** The task's queued or running run, if any: the one a cancel must stop. */
+  async activeRun(taskId: string): Promise<RunRow | null> {
+    return this.prisma.run.findFirst({ where: { taskId, status: { in: ['QUEUED', 'RUNNING'] } }, select: RUN_SELECT, orderBy: NEWEST_FIRST });
+  }
+
+  async runById(runId: string): Promise<(RunRow & { taskId: string }) | null> {
+    return this.prisma.run.findUnique({ where: { id: runId }, select: { ...RUN_SELECT, taskId: true } });
   }
 
   /** Queues a run, credits it to a team member and writes its instruction as the first terminal line. */

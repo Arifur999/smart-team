@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import {
   FIRST_AGENT_SEQ,
+  MAX_OUTCOME_CHARS,
   type LogEntry,
   type LogKind,
   type RunFinishedPayload,
@@ -185,9 +186,23 @@ export function outcomeOf(input: {
 }): Pick<RunFinishedPayload, 'status' | 'outcome'> {
   if (input.cancelled) return { status: 'CANCELLED', outcome: 'Cancelled from the dashboard.' };
   if (input.spawnError) return { status: 'FAILED', outcome: `Could not start Claude Code: ${input.spawnError.message}` };
-  if (input.final) return { status: input.final.isError ? 'FAILED' : 'SUCCEEDED', outcome: input.final.text };
+  if (input.final) return { status: input.final.isError ? 'FAILED' : 'SUCCEEDED', outcome: clipOutcome(input.final.text) };
   const stderr = input.stderrTail.trim();
   return { status: 'FAILED', outcome: stderr || `Claude Code exited with code ${input.exitCode ?? 'unknown'} before finishing.` };
+}
+
+/** Bytes of the start kept when an answer is too long for the hub; the rest of the room goes to the end. */
+const OUTCOME_HEAD = 2_000;
+
+/**
+ * Fits a final answer into what the hub accepts. Stage reports end with their JSON, so a long answer
+ * keeps its start and its end and drops the middle; otherwise the hub would refuse the whole result.
+ */
+export function clipOutcome(text: string, max = MAX_OUTCOME_CHARS): string {
+  if (text.length <= max) return text;
+  const marker = '\n… (middle cut: the full answer is in the log) …\n';
+  const tail = max - OUTCOME_HEAD - marker.length;
+  return `${text.slice(0, OUTCOME_HEAD)}${marker}${text.slice(-tail)}`;
 }
 
 /**

@@ -18,6 +18,17 @@ export interface ParsedEvent {
   final?: FinalResult;
   /** Tokens of one API message. The same message can arrive several times; keep the latest per id. */
   messageUsage?: { messageId: string; usage: TokenUsage };
+  /** The account hit its Claude usage limit; resetsAt (ISO) when Claude says. */
+  limit?: { resetsAt?: string };
+}
+
+/** How Claude words a usage-limit stop when there is no rate-limit event to go by. */
+const USAGE_LIMIT_TEXT = /usage limit|limit reached|hit your limit/i;
+
+/** Claude reports the reset as epoch seconds; returns ISO time, or undefined. */
+function resetTime(raw: unknown): string | undefined {
+  const seconds = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+  return Number.isFinite(seconds) && seconds > 0 ? new Date(seconds * 1000).toISOString() : undefined;
 }
 
 /** Reads Claude's usage object; null when it is missing. */
@@ -64,10 +75,20 @@ export function parseStreamLine(raw: string): ParsedEvent {
     case 'user':
       return { lines: contentParts(event.message?.content).flatMap(toolResultPart) };
 
-    case 'rate_limit_event':
-      return event.rate_limit_info?.status && event.rate_limit_info.status !== 'allowed'
-        ? { lines: [{ kind: 'error', text: 'Claude usage limit reached on this account. The run may stop until it resets.' }] }
+    case 'rate_limit_event': {
+      // "allowed_warning" only means the account is getting close; "rejected" means it hit the limit.
+      const status = String(event.rate_limit_info?.status ?? '');
+      if (status === 'rejected') {
+        const resetsAt = resetTime(event.rate_limit_info?.resetsAt);
+        return {
+          lines: [{ kind: 'error', text: `Claude usage limit reached on this account${resetsAt ? `; it resets at ${resetsAt}` : ''}.` }],
+          limit: resetsAt ? { resetsAt } : {},
+        };
+      }
+      return status.startsWith('allowed_warning')
+        ? { lines: [{ kind: 'status', text: 'Claude usage on this account is close to its limit.' }] }
         : { lines: [] };
+    }
 
     case 'result': {
       const isError = event.is_error === true || (typeof event.subtype === 'string' && event.subtype !== 'success');
@@ -75,6 +96,7 @@ export function parseStreamLine(raw: string): ParsedEvent {
       // On success the result repeats Claude's last message, which is already in the log.
       return {
         lines: [isError ? { kind: 'error', text: clip(text) } : { kind: 'result', text: finishedLine(event) }],
+        ...(isError && USAGE_LIMIT_TEXT.test(text) ? { limit: {} } : {}),
         final: {
           isError,
           text,

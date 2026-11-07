@@ -89,6 +89,22 @@ describe('parseStreamLine', () => {
     expect(parseStreamLine('plain warning').lines).toEqual([{ kind: 'status', text: 'plain warning' }]);
     expect(parseStreamLine('   ').lines).toEqual([]);
   });
+
+  it('treats only a rejected rate limit as a usage-limit stop', () => {
+    const warning = parseStreamLine(line({ type: 'rate_limit_event', rate_limit_info: { status: 'allowed_warning' } }));
+    expect(warning.lines[0]?.kind).toBe('status');
+    expect(warning.limit).toBeUndefined();
+
+    const rejected = parseStreamLine(line({ type: 'rate_limit_event', rate_limit_info: { status: 'rejected', resetsAt: 1_800_000_000 } }));
+    expect(rejected.lines[0]?.kind).toBe('error');
+    expect(rejected.limit).toEqual({ resetsAt: new Date(1_800_000_000_000).toISOString() });
+  });
+
+  it('spots a usage-limit stop in an error result', () => {
+    const parsed = parseStreamLine(line({ type: 'result', subtype: 'error_during_execution', is_error: true, result: "You've hit your limit · resets 3am" }));
+    expect(parsed.limit).toEqual({});
+    expect(parseStreamLine(line({ type: 'result', subtype: 'success', result: 'Done' })).limit).toBeUndefined();
+  });
 });
 
 describe('describeToolCall', () => {

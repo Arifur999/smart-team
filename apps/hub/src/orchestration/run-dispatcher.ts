@@ -6,14 +6,25 @@ import { TasksService } from '../tasks/tasks.service.js';
 import { AgentRegistry } from './agent-registry.js';
 import { DashboardGateway } from './dashboard.gateway.js';
 
-type RunEndedListener = (taskId: string) => Promise<void>;
+/** One run that has ended, for the services that react to it. */
+export interface RunEndedEvent {
+  taskId: string;
+  runId: string;
+  deviceId: string;
+}
+
+type RunEndedListener = (event: RunEndedEvent) => Promise<void>;
 
 /** Moves runs between the database, the agents and the dashboard. */
 @Injectable()
 export class RunDispatcher {
   private readonly logger = new Logger(RunDispatcher.name);
-  /** Per-device promise chain, so two triggers at once cannot start two runs on one PC. */
-  private readonly queues = new Map<string, Promise<void>>();
+  /**
+   * Per-device promise chain, so two triggers at once cannot start two runs on one PC. Only claiming and
+   * sending happen inside it: run-ended listeners run after the link, because a listener that queues the
+   * next run (and waits for it to be dispatched) would otherwise wait on itself.
+   */
+  private readonly queues = new Map<string, Promise<unknown>>();
   private readonly endedListeners: RunEndedListener[] = [];
 
   constructor(
@@ -24,7 +35,7 @@ export class RunDispatcher {
     private readonly assets: AssetsService,
   ) {}
 
-  /** Lets other services react when a task's run ends (the intake agent picks up its brief check this way). */
+  /** Lets other services react when one of a task's runs ends (the intake agent picks up its brief check this way). */
   onRunEnded(listener: RunEndedListener) {
     this.endedListeners.push(listener);
   }
@@ -32,11 +43,23 @@ export class RunDispatcher {
   /** Starts the device's next queued run if it is online and idle. Safe to call any time. */
   dispatch(deviceId: string): Promise<void> {
     const previous = this.queues.get(deviceId) ?? Promise.resolve();
-    const next = previous
+    const link = previous
       .then(() => this.startNext(deviceId))
-      .catch((error) => this.logger.error(`dispatch to ${deviceId} failed`, error));
-    this.queues.set(deviceId, next);
-    return next;
+      .catch((error: unknown) => {
+        this.logger.error(`dispatch to ${deviceId} failed`, error);
+        return null;
+      });
+    this.queues.set(deviceId, link);
+    return link.then(async (unsent) => {
+      if (!unsent) return;
+      await this.ended(unsent);
+      this.kick(deviceId);
+    });
+  }
+
+  /** Dispatch without waiting for it: for callers that hold their own locks. */
+  kick(deviceId: string): void {
+    void this.dispatch(deviceId);
   }
 
   /** Call after a run was added to a task: tells dashboards, then starts it if the PC is free. */
@@ -46,11 +69,20 @@ export class RunDispatcher {
     await this.dispatch(run.deviceId);
   }
 
+  /** Stops the task's queued or running run, if it has one. */
   async cancel(taskId: string): Promise<void> {
-    const run = await this.tasks.newestRun(taskId);
+    const run = await this.tasks.activeRun(taskId);
+    if (run) await this.cancelRun(run.id);
+  }
+
+  /** Stops one run: a queued one (or one on a disconnected PC) ends now, a running one is stopped by its agent. */
+  async cancelRun(runId: string): Promise<void> {
+    const run = await this.tasks.runById(runId);
+    if (!run) return;
     if (run.status === 'QUEUED' || (run.status === 'RUNNING' && !this.agents.isConnected(run.deviceId))) {
-      await this.tasks.finish(run.id, { status: 'CANCELLED', outcome: 'Cancelled before it finished.' });
-      await this.ended(taskId);
+      if (await this.tasks.finish(run.id, { status: 'CANCELLED', outcome: 'Cancelled before it finished.' })) {
+        await this.ended({ taskId: run.taskId, runId: run.id, deviceId: run.deviceId });
+      }
       return;
     }
     if (run.status === 'RUNNING') {
@@ -71,14 +103,14 @@ export class RunDispatcher {
   async onFinished(deviceId: string, payload: RunFinishedPayload): Promise<void> {
     const taskId = await this.tasks.taskIdOfOwnedRun(payload.runId, deviceId);
     if (!taskId) return;
-    if (await this.tasks.finish(payload.runId, payload)) await this.ended(taskId);
+    if (await this.tasks.finish(payload.runId, payload)) await this.ended({ taskId, runId: payload.runId, deviceId });
     await this.dispatch(deviceId);
   }
 
   /** The agent process restarted or lost its connection, and it stops Claude when that happens. */
   async onAgentLost(deviceId: string, reason: string): Promise<void> {
-    const taskIds = await this.tasks.failRunning(deviceId, reason);
-    await Promise.all(taskIds.map((id) => this.ended(id)));
+    const runs = await this.tasks.failRunning(deviceId, reason);
+    await Promise.all(runs.map((r) => this.ended({ ...r, deviceId })));
   }
 
   /** Sends the task's current summary to every dashboard. */
@@ -86,21 +118,22 @@ export class RunDispatcher {
     this.dashboard.pushTask(await this.tasks.summary(taskId));
   }
 
-  private async ended(taskId: string) {
+  private async ended(event: RunEndedEvent) {
     for (const listener of this.endedListeners) {
       try {
-        await listener(taskId);
+        await listener(event);
       } catch (error) {
-        this.logger.error(`run-ended listener failed for ${taskId}`, error);
+        this.logger.error(`run-ended listener failed for ${event.taskId}`, error);
       }
     }
-    await this.refresh(taskId);
+    await this.refresh(event.taskId);
   }
 
-  private async startNext(deviceId: string) {
-    if (!this.agents.isConnected(deviceId)) return;
+  /** Claims and sends the next run. Returns the run it could not send, so the caller ends it outside the chain. */
+  private async startNext(deviceId: string): Promise<RunEndedEvent | null> {
+    if (!this.agents.isConnected(deviceId)) return null;
     const run = await this.tasks.claimNextQueued(deviceId);
-    if (!run) return;
+    if (!run) return null;
 
     // Re-read the skill folders so a skill edited on the hub reaches the very next run.
     this.skills.reload();
@@ -115,9 +148,9 @@ export class RunDispatcher {
     };
     if (!this.agents.send(deviceId, AgentEvents.runStart, payload)) {
       await this.tasks.finish(run.id, { status: 'FAILED', outcome: 'The PC disconnected before the run could start.' });
-      await this.ended(run.taskId);
-      return;
+      return { taskId: run.taskId, runId: run.id, deviceId };
     }
     await this.refresh(run.taskId);
+    return null;
   }
 }

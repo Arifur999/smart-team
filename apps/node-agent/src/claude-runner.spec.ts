@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { buildClaudeArgs, outcomeOf, UsageTally } from './claude-runner.js';
+import { buildClaudeArgs, clipOutcome, outcomeOf, UsageTally } from './claude-runner.js';
+
+describe('clipOutcome', () => {
+  it('keeps short answers whole', () => {
+    expect(clipOutcome('all done')).toBe('all done');
+  });
+
+  it('keeps the start and the trailing JSON of a long answer within the limit', () => {
+    const answer = `${'notes '.repeat(5000)}\n{"score":84,"pass":true}`;
+    const clipped = clipOutcome(answer, 2_500);
+    expect(clipped.length).toBeLessThanOrEqual(2_500);
+    expect(clipped.startsWith('notes notes')).toBe(true);
+    expect(clipped.endsWith('{"score":84,"pass":true}')).toBe(true);
+  });
+});
 import type { ClaudeConfig } from './config.js';
 
 const claude: ClaudeConfig = { command: 'claude', permissionMode: 'acceptEdits', allowedTools: ['Bash(npm test:*)'] };

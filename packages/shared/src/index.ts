@@ -233,6 +233,9 @@ export interface TerminalLine extends LogEntry {
 /** Longest text kept for one log entry; tool output beyond this is cut. */
 export const MAX_LOG_TEXT = 4_000;
 
+/** Longest final answer an agent sends back. Agents keep the start and the end, where reports put their JSON. */
+export const MAX_OUTCOME_CHARS = 20_000;
+
 export interface CreateTaskInput {
   team: TeamId;
   title: string;

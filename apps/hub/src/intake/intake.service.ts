@@ -30,7 +30,7 @@ export class IntakeService implements OnModuleInit {
 
   onModuleInit() {
     // The brief check is a run like any other; pick its result up when it ends.
-    this.runs.onRunEnded((taskId) => this.onCheckEnded(taskId));
+    this.runs.onRunEnded(({ taskId }) => this.onCheckEnded(taskId));
   }
 
   /** Greets you and takes the description from the new-task form as the answer to the first question. */
