@@ -73,6 +73,14 @@ enum StepStatus {
   CANCELLED
 }
 
+enum DeliverableKind {
+  VIDEO
+  IMAGE
+  AUDIO
+  TEXT
+  OTHER
+}
+
 /// UPLOAD: stored on the hub. PATH: a file or folder on one of the PCs. LINK: a URL.
 enum AssetKind {
   UPLOAD
@@ -144,8 +152,9 @@ model Task {
   runs     Run[]
   brief    Brief?
   messages IntakeMessage[]
-  assets   Asset[]
-  steps    LineStep[]
+  assets       Asset[]
+  steps        LineStep[]
+  deliverables Deliverable[]
 
   @@index([createdAt])
   @@index([team, createdAt])
@@ -258,10 +267,11 @@ model Run {
   /// When the line acted on this run's end. Finished line runs without it are picked up again.
   routedAt        DateTime? @db.Timestamptz(3)
 
-  task   Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  device Device    @relation(fields: [deviceId], references: [id], onDelete: Restrict)
-  step   LineStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
-  logs   RunLog[]
+  task         Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  device       Device        @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  step         LineStep?     @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  logs         RunLog[]
+  deliverables Deliverable[]
 
   @@index([stepId, createdAt])
   @@index([taskId, createdAt])
@@ -303,13 +313,41 @@ model LineStep {
   createdAt  DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt  DateTime   @updatedAt @db.Timestamptz(3)
 
-  task     Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  causedBy LineStep?  @relation("StepCause", fields: [causedById], references: [id], onDelete: SetNull)
-  caused   LineStep[] @relation("StepCause")
-  runs     Run[]
+  task         Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  causedBy     LineStep?     @relation("StepCause", fields: [causedById], references: [id], onDelete: SetNull)
+  caused       LineStep[]    @relation("StepCause")
+  runs         Run[]
+  deliverables Deliverable[]
 
   @@index([taskId, createdAt])
   @@map("line_steps")
+}
+
+/// A file an agent uploaded from a task's folder for the Review Booth. The same path uploaded again is a new version.
+model Deliverable {
+  id         String          @id @default(uuid(7)) @db.Uuid
+  taskId     String          @db.Uuid
+  stepId     String?         @db.Uuid
+  runId      String?         @db.Uuid
+  stage      String
+  /// Path inside the task folder, e.g. "04-renders/v2/film.mp4".
+  path       String
+  version    Int
+  kind       DeliverableKind
+  label      String?
+  /// File name in DELIVERABLES_DIR.
+  storageKey String          @unique
+  size       BigInt
+  mime       String
+  createdAt  DateTime        @default(now()) @db.Timestamptz(3)
+
+  task Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  step LineStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  run  Run?      @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, path, version])
+  @@index([stepId])
+  @@map("deliverables")
 }
 
 /// One line of a run's live log. `seq` comes from the agent and orders the lines.

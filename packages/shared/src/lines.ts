@@ -169,6 +169,7 @@ export const LINES: LineDef[] = [
         dir: '01-source',
         requiredFiles: ['01-source/style-spec.md', '01-source/beat-map.json', '01-source/brand-facts.md'],
         deliverables: [
+          { glob: '01-source/ref.mp4', label: 'Reference' },
           { glob: '01-source/reference-sheet.png', label: 'Reference contact sheet' },
           { glob: '01-source/reference-frames/*.png', label: 'Reference beat frames', maxFiles: 30 },
         ],

@@ -214,6 +214,51 @@ export interface LineStepView {
   runs: LineStepRunView[];
 }
 
+/** A file a stage uploaded for the Review Booth. */
+export interface DeliverableView {
+  id: string;
+  stage: string;
+  /** Path inside the task folder, e.g. "04-renders/v2/film.mp4". */
+  path: string;
+  /** Times the same path was uploaded so far (1 = first). */
+  version: number;
+  kind: 'VIDEO' | 'IMAGE' | 'AUDIO' | 'TEXT' | 'OTHER';
+  label: string | null;
+  size: number;
+  mime: string;
+  createdAt: string;
+  /** Where the browser plays or shows it (supports seeking). */
+  url: string;
+}
+
+/** A gate's judgement of one version. */
+export interface VersionVerdict {
+  stage: string;
+  ownerId: string;
+  round: number;
+  score: number | null;
+  pass: boolean;
+  summary: string;
+  fixes: FixNote[];
+  at: string;
+}
+
+/** One render version (v1, v2…) with its files and the judgements of it. */
+export interface VersionView {
+  n: number;
+  files: DeliverableView[];
+  verdicts: VersionVerdict[];
+}
+
+export interface VersionsView {
+  taskId: string;
+  versions: VersionView[];
+  /** What Read source made from the reference: the copy to play side by side, its contact sheet, beat frames. */
+  references: DeliverableView[];
+  /** Style frames, newest round first. */
+  styleFrames: DeliverableView[];
+}
+
 /** Your notes when you send work back; pick a stage, or let the critic route them. */
 export interface SendBackInput {
   notes: string;

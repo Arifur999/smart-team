@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { BotController } from '../bot/bot.controller.js';
 import { BotService } from '../bot/bot.service.js';
+import { AgentDeliverablesController, DeliverablesController } from '../deliverables/deliverables.controller.js';
+import { DeliverablesService } from '../deliverables/deliverables.service.js';
 import { DevicesModule } from '../devices/devices.module.js';
 import { AssetsController } from '../intake/assets.controller.js';
 import { AssetsService } from '../intake/assets.service.js';
@@ -25,8 +27,18 @@ import { RunDispatcher } from './run-dispatcher.js';
  */
 @Module({
   imports: [DevicesModule, SkillsModule],
-  controllers: [TasksController, AgentStatsController, IntakeController, AssetsController, BotController, LineController],
+  controllers: [
+    TasksController,
+    AgentStatsController,
+    IntakeController,
+    AssetsController,
+    BotController,
+    LineController,
+    AgentDeliverablesController,
+    DeliverablesController,
+  ],
   providers: [
+    DeliverablesService,
     TasksService,
     TaskActions,
     AssetsService,

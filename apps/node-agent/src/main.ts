@@ -15,6 +15,7 @@ import { loadConfig } from './config.js';
 import { detectTools, folderResources } from './resources.js';
 import { AssetCache, type PreparedAssets } from './asset-cache.js';
 import { SkillCache } from './skill-cache.js';
+import { DeliverableUploader } from './deliverable-uploader.js';
 import { missingFiles, prepareTaskFolder, saveReply } from './stage-files.js';
 
 /** 0.4.0: runs production-line stages (role, task folder, required files). */
@@ -59,6 +60,9 @@ socket.on('connect', async () => {
 
 /** A run whose skills or files are still downloading; Claude has not started yet, so cancelling just marks it. */
 let preparing: { runId: string; cancelled: boolean } | undefined;
+/** A line run whose Claude part is done and whose files are uploading; cancelling stops the upload. */
+let collecting: { runId: string; controller: AbortController } | undefined;
+const uploader = new DeliverableUploader(config.hubUrl, config.token, () => deviceId);
 
 socket.on(AgentEvents.runStart, async (run: RunStartPayload) => {
   console.log(`Starting ${run.mode.toLowerCase()} run ${run.runId} in ${run.workDir}`);
@@ -104,10 +108,23 @@ socket.on(AgentEvents.runStart, async (run: RunStartPayload) => {
       onLogs: (entries, usage) => socket.emit(AgentEvents.runLog, { runId: run.runId, entries, ...(usage ? { usage } : {}) } satisfies RunLogPayload),
       onFinished: (result, fullText) => {
         if (!role || !taskDir) return finish(result);
+        const dir = taskDir;
         // Save the reply first: some stages must leave it as one of their required files.
-        const savedReplyTo = result.status === 'SUCCEEDED' && fullText ? saveReply(taskDir, role.saveReplyTo, fullText) : null;
-        const missing = result.status === 'SUCCEEDED' ? missingFiles(taskDir, role.requiredFiles) : [];
-        finish({ ...result, report: { missing, savedReplyTo, uploaded: [], uploadErrors: [] } });
+        const savedReplyTo = result.status === 'SUCCEEDED' && fullText ? saveReply(dir, role.saveReplyTo, fullText) : null;
+        const missing = result.status === 'SUCCEEDED' ? missingFiles(dir, role.requiredFiles) : [];
+        if (result.status !== 'SUCCEEDED' || role.deliverables.length === 0) {
+          return finish({ ...result, report: { missing, savedReplyTo, uploaded: [], uploadErrors: [] } });
+        }
+        // The run stays open on the hub until its files are up, so the Review Booth has them when the stage ends.
+        const controller = new AbortController();
+        collecting = { runId: run.runId, controller };
+        void uploader
+          .upload(run.runId, dir, role.deliverables, (text) => console.log(text), controller.signal)
+          .then((files) => {
+            if (collecting?.runId === run.runId) collecting = undefined;
+            if (controller.signal.aborted) return finish({ status: 'CANCELLED', outcome: 'Cancelled from the dashboard.' });
+            finish({ ...result, report: { missing, savedReplyTo, ...files } });
+          });
       },
     },
     {
@@ -127,6 +144,7 @@ socket.on(AgentEvents.runStart, async (run: RunStartPayload) => {
 
 socket.on(AgentEvents.runCancel, ({ runId }: RunCancelPayload) => {
   if (preparing?.runId === runId) preparing.cancelled = true;
+  else if (collecting?.runId === runId) collecting.controller.abort();
   else if (runner.cancel(runId)) console.log(`Cancelling run ${runId}`);
 });
 
