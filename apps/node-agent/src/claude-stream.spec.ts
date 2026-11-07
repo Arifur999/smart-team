@@ -66,6 +66,7 @@ describe('parseStreamLine', () => {
     expect(parsed.final).toEqual({
       isError: false,
       text: 'All done.',
+      subtype: 'success',
       costUsd: 0.2,
       usage: { input: 10, output: 125, cacheRead: 51679, cacheCreation: 17795 },
     });

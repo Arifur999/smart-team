@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
-import { INTAKE_AGENT_NAME, INTAKE_TEMPLATES, PLAN_AGENT_NAME, type IntakeField, type IntakeView } from '@smart-team/shared';
+import { INTAKE_AGENT_NAME, INTAKE_TEMPLATES, lineByKey, memberById, PLAN_AGENT_NAME, type IntakeField, type IntakeView } from '@smart-team/shared';
 import type { IntakePhase } from '../generated/prisma/client.js';
+import { LineService } from '../line/line.service.js';
 import { RunDispatcher } from '../orchestration/run-dispatcher.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { TasksService } from '../tasks/tasks.service.js';
@@ -26,6 +27,7 @@ export class IntakeService implements OnModuleInit {
     private readonly tasks: TasksService,
     private readonly assets: AssetsService,
     private readonly runs: RunDispatcher,
+    private readonly lines: LineService,
   ) {}
 
   onModuleInit() {
@@ -102,11 +104,19 @@ export class IntakeService implements OnModuleInit {
     await this.runs.refresh(taskId);
   }
 
-  /** You confirmed the summary: lock the brief and queue the plan. */
+  /** You confirmed the summary: lock the brief, then start the production line (or, for other teams, the plan). */
   async confirm(taskId: string) {
     const { brief, task } = await this.load(taskId);
     if (brief.phase !== 'READY' || !brief.summary) throw new ConflictException('The brief is not ready to confirm yet.');
     await this.setPhase(taskId, 'LOCKED', { lockedAt: new Date() });
+    const line = lineByKey(task.line);
+    if (line) {
+      const first = line.stages.find((s) => !s.intake);
+      const who = first ? (memberById(first.owner)?.name ?? first.owner) : 'The team';
+      await this.say(taskId, 'FRIDAY', `Brief locked. ${who} starts now: ${first?.label ?? 'the line'}. Follow it on the Production Line.`);
+      await this.lines.start(taskId);
+      return;
+    }
     await this.say(taskId, 'FRIDAY', `Brief locked. ${PLAN_AGENT_NAME} is planning it now.`);
     await this.tasks.queueRun(taskId, 'PLAN', planPrompt(task.team, brief.summary));
     await this.runs.queued(taskId);
@@ -177,7 +187,7 @@ export class IntakeService implements OnModuleInit {
   }
 
   private async load(taskId: string) {
-    const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: { team: true, title: true, brief: true } });
+    const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: { team: true, title: true, line: true, brief: true } });
     if (!task?.brief) throw new NotFoundException('This task has no brief.');
     return { task, brief: task.brief, fields: INTAKE_TEMPLATES[task.team] };
   }

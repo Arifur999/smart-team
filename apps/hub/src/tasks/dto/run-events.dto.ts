@@ -5,8 +5,10 @@ import {
   type FinishedRunStatus,
   type LogEntry,
   type LogKind,
+  type RunFailure,
   type RunFinishedPayload,
   type RunLogPayload,
+  type RunReport,
   type TokenUsage,
 } from '@smart-team/shared';
 import { Type } from 'class-transformer';
@@ -27,6 +29,43 @@ import {
 } from 'class-validator';
 
 const FINISHED: FinishedRunStatus[] = ['SUCCEEDED', 'FAILED', 'CANCELLED'];
+const RUN_FAILURES: RunFailure[] = ['usage-limit', 'max-turns', 'timeout', 'agent-lost', 'agent-outdated', 'error'];
+
+class UploadedFileDto {
+  @IsString()
+  @MaxLength(100)
+  id!: string;
+
+  @IsString()
+  @MaxLength(500)
+  path!: string;
+}
+
+/** The agent's own check after a line run. */
+export class RunReportDto implements RunReport {
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  missing!: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  savedReplyTo!: string | null;
+
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => UploadedFileDto)
+  uploaded!: UploadedFileDto[];
+
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  uploadErrors!: string[];
+}
 
 export class LogEntryDto implements LogEntry {
   @IsInt()
@@ -111,4 +150,17 @@ export class RunFinishedDto implements RunFinishedPayload {
   @ValidateNested()
   @Type(() => TokenUsageDto)
   usage?: TokenUsageDto;
+
+  @IsOptional()
+  @IsIn(RUN_FAILURES)
+  failure?: RunFailure;
+
+  @IsOptional()
+  @IsISO8601()
+  retryAt?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RunReportDto)
+  report?: RunReportDto;
 }

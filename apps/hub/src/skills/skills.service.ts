@@ -14,8 +14,14 @@ interface FoundSkill extends SkillRef {
   files: string[];
 }
 
+/**
+ * skill-packs/manifest.json. `roles` keys are "planner", "final-qa", "manager" or "<team>.<role>"; `members` keys
+ * are "<team>.<memberId>" or a leadership member id; `line` is loaded by every production-line stage.
+ */
 interface Manifest {
   roles: Record<string, string[]>;
+  members: Record<string, string[]>;
+  line: string[];
 }
 
 /**
@@ -27,31 +33,50 @@ interface Manifest {
 export class SkillsService implements OnModuleInit {
   private readonly logger = new Logger(SkillsService.name);
   private skills = new Map<string, FoundSkill>();
-  private manifest: Manifest = { roles: {} };
+  private manifest: Manifest = { roles: {}, members: {}, line: [] };
+  private lastReport = '';
 
   onModuleInit() {
     this.reload();
   }
 
-  /** Re-reads the manifest and all skill folders. Cheap enough to call before each run. */
+  /**
+   * Re-reads the manifest and all skill folders. Cheap enough to call before each run. Sources in order (the
+   * first wins): the repo's skill-packs/skills, the PC-only skill-packs/local (client brand kits), then SKILL_DIRS.
+   */
   reload() {
     const env = getEnv();
     this.manifest = readManifest(join(env.SKILL_PACKS_DIR, 'manifest.json'));
-    const dirs = [join(env.SKILL_PACKS_DIR, 'skills'), ...env.SKILL_DIRS];
+    const dirs = [join(env.SKILL_PACKS_DIR, 'skills'), join(env.SKILL_PACKS_DIR, 'local'), ...env.SKILL_DIRS];
 
     const found = new Map<string, FoundSkill>();
+    const shadowed: string[] = [];
     for (const root of dirs) {
       if (!existsSync(root)) continue;
       for (const name of readdirSync(root)) {
-        if (found.has(name)) continue; // the first source wins
+        if (name.startsWith('.')) continue;
         const skill = readSkill(join(root, name), name);
-        if (skill) found.set(name, skill);
+        if (!skill) continue;
+        if (found.has(name)) shadowed.push(`${name} (${skill.dir} is shadowed by ${found.get(name)!.dir})`);
+        else found.set(name, skill);
       }
     }
     this.skills = found;
 
+    // Log once per change, not before every run.
     const missing = this.roleSkills().flatMap((r) => r.skills.filter((s) => !s.version).map((s) => `${r.role}: ${s.name}`));
-    this.logger.log(`${found.size} skills found${missing.length ? `; missing ${missing.join(', ')}` : ''}`);
+    const report = `${found.size} skills found${missing.length ? `; missing ${missing.join(', ')}` : ''}${shadowed.length ? `; duplicates ${shadowed.join('; ')}` : ''}`;
+    if (report !== this.lastReport) this.logger.log(report);
+    this.lastReport = report;
+  }
+
+  /** The skills of a production-line stage: the line's own plus those of the given manifest keys (role, member, extras). */
+  forKeys(keys: string[]): SkillRef[] {
+    const patterns = [...this.manifest.line, ...keys.flatMap((k) => this.manifest.roles[k] ?? this.manifest.members[k] ?? [])];
+    return [...new Set(this.expand(patterns))].flatMap((n) => {
+      const s = this.skills.get(n);
+      return s ? [{ name: s.name, version: s.version }] : [];
+    });
   }
 
   /** The skills a run loads: plans get the planner's skills plus the team's worker skills, work gets the worker skills. */
@@ -68,7 +93,7 @@ export class SkillsService implements OnModuleInit {
 
   /** Every role in the manifest with its skills, marking the ones the hub cannot find. */
   roleSkills(): RoleSkills[] {
-    return Object.entries(this.manifest.roles).map(([role, patterns]) => ({
+    return [...Object.entries(this.manifest.roles), ...Object.entries(this.manifest.members)].map(([role, patterns]) => ({
       role,
       skills: patterns.flatMap((p) => {
         const names = this.expand([p]);
@@ -100,9 +125,9 @@ export class SkillsService implements OnModuleInit {
 }
 
 function readManifest(path: string): Manifest {
-  if (!existsSync(path)) return { roles: {} };
+  if (!existsSync(path)) return { roles: {}, members: {}, line: [] };
   const raw = JSON.parse(readFileSync(path, 'utf8')) as Partial<Manifest>;
-  return { roles: raw.roles ?? {} };
+  return { roles: raw.roles ?? {}, members: raw.members ?? {}, line: Array.isArray(raw.line) ? raw.line : [] };
 }
 
 /** A folder is a skill when it has a SKILL.md at its root. Broken links and unreadable folders are skipped. */

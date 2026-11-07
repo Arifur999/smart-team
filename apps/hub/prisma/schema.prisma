@@ -55,6 +55,24 @@ enum Speaker {
   YOU
 }
 
+/// WORK: a member makes something. GATE: a member judges it. CHECK: you decide.
+enum StepKind {
+  WORK
+  GATE
+  CHECK
+}
+
+/// ACTIVE: a run is queued, going, or paused for a usage limit. WAITING: needs you.
+enum StepStatus {
+  ACTIVE
+  WAITING
+  DONE
+  SENT_BACK
+  SKIPPED
+  FAILED
+  CANCELLED
+}
+
 /// UPLOAD: stored on the hub. PATH: a file or folder on one of the PCs. LINK: a URL.
 enum AssetKind {
   UPLOAD
@@ -111,6 +129,14 @@ model Task {
   /// Where the task runs. Set at creation, before any run exists; older tasks were backfilled from their first run.
   deviceId  String?  @db.Uuid
   workDir   String?
+  /// Production line key, e.g. "nextEditor.video". Null: plan -> approve -> execute (older tasks, teams not on a line yet).
+  line         String?
+  /// Your choices for the line (direction, trust, pass mark, fixes, stages off, extra checks), filled in when it starts.
+  lineSettings Json      @default("{}")
+  /// The task's own folder inside workDir, e.g. "20261107-naxified-motion-0d66".
+  folder       String?
+  /// Set while a stage waits for a Claude usage limit to reset.
+  resumeAt     DateTime? @db.Timestamptz(3)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
@@ -119,6 +145,7 @@ model Task {
   brief    Brief?
   messages IntakeMessage[]
   assets   Asset[]
+  steps    LineStep[]
 
   @@index([createdAt])
   @@index([team, createdAt])
@@ -215,15 +242,74 @@ model Run {
   finishedAt DateTime? @db.Timestamptz(3)
   createdAt  DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt  DateTime  @updatedAt @db.Timestamptz(3)
+  /// The production-line step this run works on. Null for intake checks and plan/execute tasks.
+  stepId          String?   @db.Uuid
+  stage           String?
+  /// 1 for a step's first try; automatic retries count up.
+  attempt         Int       @default(1)
+  /// Line runs choose the session to continue when they are queued; other runs pick it when claimed.
+  resumeSessionId String?
+  /// What the agent is told for a line run (persona, access, task folder, files): RunRole plus skill keys.
+  role            Json?
+  /// Why the run failed, as a kind: usage-limit, max-turns, timeout, agent-lost, agent-outdated, error.
+  failure         String?
+  /// The agent's check after the run: missing files, saved reply, uploads, reset time.
+  report          Json?
+  /// When the line acted on this run's end. Finished line runs without it are picked up again.
+  routedAt        DateTime? @db.Timestamptz(3)
 
-  task   Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  device Device   @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  task   Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  device Device    @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  step   LineStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
   logs   RunLog[]
 
+  @@index([stepId, createdAt])
   @@index([taskId, createdAt])
   @@index([deviceId, status, createdAt])
   @@index([agentId, status])
   @@map("runs")
+}
+
+/// One pass of a task through one stage of its production line: a member's work, a gate's verdict or your check.
+model LineStep {
+  id         String     @id @default(uuid(7)) @db.Uuid
+  taskId     String     @db.Uuid
+  stage      String
+  kind       StepKind
+  /// Member credited, e.g. "beast"; "you" for your checks.
+  ownerId    String
+  /// 1 the first time the task reaches this stage, then 2, 3… Version folders use it (v2).
+  round      Int
+  status     StepStatus
+  /// line | fix | recheck | triage
+  reason     String     @default("line")
+  /// What this step must address: FixNote[].
+  notes      Json       @default("[]")
+  /// The stage's parsed report (work) or verdict (gate).
+  result     Json?
+  score      Int?
+  /// Short text for later stages' prompts and the line board.
+  summary    String?
+  /// On a step that sent work back: { stages, notes, rejoin }.
+  route      Json?
+  /// Your words when you decided, or why the step was skipped or is waiting.
+  comment    String?
+  /// "you" when you decided the outcome, else the member id.
+  decidedBy  String?
+  /// The step whose send-back this step is part of.
+  causedById String?    @db.Uuid
+  startedAt  DateTime   @default(now()) @db.Timestamptz(3)
+  finishedAt DateTime?  @db.Timestamptz(3)
+  createdAt  DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime   @updatedAt @db.Timestamptz(3)
+
+  task     Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  causedBy LineStep?  @relation("StepCause", fields: [causedById], references: [id], onDelete: SetNull)
+  caused   LineStep[] @relation("StepCause")
+  runs     Run[]
+
+  @@index([taskId, createdAt])
+  @@map("line_steps")
 }
 
 /// One line of a run's live log. `seq` comes from the agent and orders the lines.

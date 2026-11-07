@@ -6,6 +6,8 @@ import { AssetsController } from '../intake/assets.controller.js';
 import { AssetsService } from '../intake/assets.service.js';
 import { IntakeController } from '../intake/intake.controller.js';
 import { IntakeService } from '../intake/intake.service.js';
+import { LineController } from '../line/line.controller.js';
+import { LineService } from '../line/line.service.js';
 import { SkillsModule } from '../skills/skills.module.js';
 import { AgentStatsController } from '../tasks/agent-stats.controller.js';
 import { TaskActions } from '../tasks/task-actions.js';
@@ -23,7 +25,19 @@ import { RunDispatcher } from './run-dispatcher.js';
  */
 @Module({
   imports: [DevicesModule, SkillsModule],
-  controllers: [TasksController, AgentStatsController, IntakeController, AssetsController, BotController],
-  providers: [TasksService, TaskActions, AssetsService, IntakeService, BotService, AgentRegistry, DashboardGateway, AgentsGateway, DevicesSweeper, RunDispatcher],
+  controllers: [TasksController, AgentStatsController, IntakeController, AssetsController, BotController, LineController],
+  providers: [
+    TasksService,
+    TaskActions,
+    AssetsService,
+    IntakeService,
+    BotService,
+    AgentRegistry,
+    DashboardGateway,
+    AgentsGateway,
+    DevicesSweeper,
+    RunDispatcher,
+    LineService,
+  ],
 })
 export class OrchestrationModule {}

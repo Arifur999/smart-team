@@ -30,10 +30,10 @@ describe('briefLines', () => {
   it('shows answers, files, skipped and missing fields in template order', () => {
     const lines = briefLines(state);
     expect(lines[0]).toBe('- Goal (required): A 30 second launch reel');
-    expect(lines).toContain('- Raw footage (required): files: uploaded file clip.mp4');
-    expect(lines).toContain('- VFX references (required): files: link https://example.com/ref');
+    expect(lines).toContain('- Raw footage: files: uploaded file clip.mp4');
+    expect(lines).toContain('- Style reference (required): files: link https://example.com/ref');
     expect(lines).toContain('- Captions: (skipped)');
-    expect(lines).toContain('- Length and format (required): (no answer)');
+    expect(lines).toContain('- Length and formats (required): (no answer)');
   });
 });
 

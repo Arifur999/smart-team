@@ -1,5 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AgentEvents, type RunCancelPayload, type RunFinishedPayload, type RunLogPayload, type RunStartPayload } from '@smart-team/shared';
+import {
+  AgentEvents,
+  MIN_LINE_AGENT_VERSION,
+  type RunCancelPayload,
+  type RunFinishedPayload,
+  type RunLogPayload,
+  type RunRole,
+  type RunStartPayload,
+} from '@smart-team/shared';
 import { AssetsService } from '../intake/assets.service.js';
 import { SkillsService } from '../skills/skills.service.js';
 import { TasksService } from '../tasks/tasks.service.js';
@@ -135,16 +143,28 @@ export class RunDispatcher {
     const run = await this.tasks.claimNextQueued(deviceId);
     if (!run) return null;
 
+    if (run.role && olderThan(run.agentVersion, MIN_LINE_AGENT_VERSION)) {
+      await this.tasks.finish(run.id, {
+        status: 'FAILED',
+        failure: 'agent-outdated',
+        outcome: `This PC's smart-team agent (${run.agentVersion}) is too old for production lines; update it to ${MIN_LINE_AGENT_VERSION} or newer.`,
+      });
+      return { taskId: run.taskId, runId: run.id, deviceId };
+    }
+
     // Re-read the skill folders so a skill edited on the hub reaches the very next run.
     this.skills.reload();
+    const { skillKeys, ...role } = run.role ?? { skillKeys: [] };
     const payload: RunStartPayload = {
       runId: run.id,
       prompt: run.prompt,
       workDir: run.workDir,
       mode: run.mode,
-      skills: this.skills.forRun(run.team, run.mode),
+      // A line stage gets its member's skills; other runs get the team's by mode.
+      skills: run.role ? this.skills.forKeys(skillKeys) : this.skills.forRun(run.team, run.mode),
       assets: await this.assets.forRun(run.taskId, run.team),
       ...(run.resumeSessionId ? { resumeSessionId: run.resumeSessionId } : {}),
+      ...(run.role ? { role: role as RunRole } : {}),
     };
     if (!this.agents.send(deviceId, AgentEvents.runStart, payload)) {
       await this.tasks.finish(run.id, { status: 'FAILED', outcome: 'The PC disconnected before the run could start.' });
@@ -153,4 +173,18 @@ export class RunDispatcher {
     await this.refresh(run.taskId);
     return null;
   }
+}
+
+/** "0.3.0" is older than "0.4.0"; anything unreadable counts as old. */
+export function olderThan(version: string, minimum: string): boolean {
+  const parse = (v: string) => v.split('.').map((n) => Number.parseInt(n, 10));
+  const a = parse(version);
+  const b = parse(minimum);
+  if (a.some(Number.isNaN)) return true;
+  for (let i = 0; i < b.length; i++) {
+    const x = a[i] ?? 0;
+    const y = b[i]!;
+    if (x !== y) return x < y;
+  }
+  return false;
 }

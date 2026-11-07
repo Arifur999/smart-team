@@ -3,6 +3,7 @@ import { createInterface } from 'node:readline';
 import {
   FIRST_AGENT_SEQ,
   MAX_OUTCOME_CHARS,
+  type RunFailure,
   type LogEntry,
   type LogKind,
   type RunFinishedPayload,
@@ -44,7 +45,8 @@ const STDERR_KEEP = 2_000;
 export interface RunCallbacks {
   /** `usage` is the run's token total, sent only when it changed. */
   onLogs(entries: LogEntry[], usage?: TokenUsage): void;
-  onFinished(result: Omit<RunFinishedPayload, 'runId'>): void;
+  /** `fullText` is Claude's whole final answer (the outcome may be cut to fit the hub). */
+  onFinished(result: Omit<RunFinishedPayload, 'runId'>, fullText?: string): void;
 }
 
 export interface RunOptions {
@@ -56,11 +58,26 @@ export interface RunOptions {
   promptSuffix?: string;
   /** Lines shown in the terminal before Claude starts, e.g. which skills were loaded. */
   notes?: string[];
+  /** Where Claude works instead of the run's work folder: a line stage's task folder, already checked. */
+  cwd?: string;
+  /** Stops a run that takes longer than this. */
+  timeoutMinutes?: number;
 }
+
+/** Environment for Claude Code: HyperFrames must not install its own skill copies or nag about updates. */
+const CLAUDE_ENV = { HYPERFRAMES_SKIP_SKILLS: '1', HYPERFRAMES_NO_UPDATE_CHECK: '1' };
+
+/** Tools a review stage may not use: it judges the work, it does not change it. */
+const EDIT_TOOLS = ['Edit', 'Write', 'NotebookEdit'];
+
+const PLATFORM_LINE =
+  process.platform === 'win32'
+    ? 'This PC runs Windows: use Windows paths, and keep temporary files inside the task folder (for example _tmp/), not /tmp.'
+    : `This PC runs ${process.platform}.`;
 
 /** Builds the Claude Code command line for one run. The prompt goes over stdin, never on the command line. */
 export function buildClaudeArgs(
-  run: Pick<RunStartPayload, 'mode' | 'resumeSessionId'>,
+  run: Pick<RunStartPayload, 'mode' | 'resumeSessionId' | 'role'>,
   claude: ClaudeConfig,
   pluginDir?: string,
   addDirs: string[] = [],
@@ -68,7 +85,17 @@ export function buildClaudeArgs(
   const args = ['-p', '--output-format', 'stream-json', '--verbose'];
   if (pluginDir) args.push('--plugin-dir', pluginDir);
   for (const dir of addDirs) args.push('--add-dir', dir);
-  if (run.mode === 'INTAKE') {
+  const role = run.role;
+  if (role) {
+    // A production-line stage: the hub says who the member is and how much they may change.
+    if (role.access === 'plan') args.push('--permission-mode', 'plan');
+    else args.push('--permission-mode', claude.permissionMode);
+    args.push('--append-system-prompt', `${role.systemPrompt}\n${PLATFORM_LINE}`);
+    if (role.access === 'review') args.push('--disallowedTools', ...EDIT_TOOLS);
+    const allowed = role.access === 'review' ? claude.allowedTools.filter((t) => !EDIT_TOOLS.includes(t)) : claude.allowedTools;
+    if (role.access !== 'plan' && allowed.length > 0) args.push('--allowedTools', ...allowed);
+    if (role.model) args.push('--model', role.model);
+  } else if (run.mode === 'INTAKE') {
     args.push('--permission-mode', 'plan', '--append-system-prompt', INTAKE_SYSTEM_PROMPT);
   } else if (run.mode === 'PLAN') {
     args.push('--permission-mode', 'plan', '--append-system-prompt', PLAN_SYSTEM_PROMPT);
@@ -76,7 +103,8 @@ export function buildClaudeArgs(
     args.push('--permission-mode', claude.permissionMode, '--append-system-prompt', WORK_SYSTEM_PROMPT);
     if (claude.allowedTools.length > 0) args.push('--allowedTools', ...claude.allowedTools);
   }
-  if (claude.maxTurns) args.push('--max-turns', String(claude.maxTurns));
+  const maxTurns = role?.maxTurns ?? claude.maxTurns;
+  if (maxTurns) args.push('--max-turns', String(maxTurns));
   if (run.resumeSessionId) args.push('--resume', run.resumeSessionId);
   return args;
 }
@@ -103,11 +131,12 @@ export class ClaudeRunner {
     };
 
     if (this.current) return reject('This PC is already running another task.');
-    const cwd = resolveAllowedDir(run.workDir, this.sharedFolders());
+    const cwd = options.cwd ?? resolveAllowedDir(run.workDir, this.sharedFolders());
     if (!cwd) return reject(`The folder ${run.workDir} is not shared on this PC, or does not exist.`);
 
     const child = spawn(this.claude.command, buildClaudeArgs(run, this.claude, options.pluginDir, options.addDirs), {
       cwd,
+      env: { ...process.env, ...CLAUDE_ENV },
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -118,7 +147,15 @@ export class ClaudeRunner {
     let final: FinalResult | undefined;
     let sessionId: string | undefined;
     let stderrTail = '';
+    let limit: { resetsAt?: string } | undefined;
+    let timedOut = false;
     const tokens = new UsageTally();
+    const deadline = options.timeoutMinutes
+      ? setTimeout(() => {
+          timedOut = true;
+          killTree(child);
+        }, options.timeoutMinutes * 60_000)
+      : undefined;
 
     const push = (kind: LogKind, text: string) => pending.push({ seq: seq++, kind, text, at: now() });
     const flush = () => {
@@ -135,6 +172,7 @@ export class ClaudeRunner {
       const parsed = parseStreamLine(line);
       for (const l of parsed.lines) push(l.kind, l.text);
       if (parsed.messageUsage) tokens.record(parsed.messageUsage.messageId, parsed.messageUsage.usage);
+      if (parsed.limit) limit = { ...limit, ...parsed.limit };
       if (parsed.final) final = parsed.final;
     });
     child.stderr!.on('data', (chunk: Buffer) => {
@@ -148,19 +186,28 @@ export class ClaudeRunner {
       if (done) return;
       done = true;
       clearInterval(timer);
+      clearTimeout(deadline);
 
-      const result = outcomeOf({ cancelled: state.cancelled, final, exitCode, stderrTail, spawnError });
+      const result = timedOut
+        ? { status: 'FAILED' as const, outcome: `Stopped after ${options.timeoutMinutes} minutes, the stage's time limit.` }
+        : outcomeOf({ cancelled: state.cancelled, final, exitCode, stderrTail, spawnError });
       if (result.status !== 'SUCCEEDED' && result.outcome && !final) push('error', result.outcome);
       flush();
       if (this.current === state) this.current = undefined;
       // Claude's own total wins; a cancelled run has none, so fall back to what was counted live.
       const usage = final?.usage ?? tokens.total();
-      callbacks.onFinished({
-        ...result,
-        usage,
-        ...(sessionId ? { sessionId } : {}),
-        ...(final?.costUsd !== undefined ? { costUsd: final.costUsd } : {}),
-      });
+      const failure = result.status === 'FAILED' ? failureKind({ timedOut, limit, final }) : undefined;
+      callbacks.onFinished(
+        {
+          ...result,
+          usage,
+          ...(sessionId ? { sessionId } : {}),
+          ...(final?.costUsd !== undefined ? { costUsd: final.costUsd } : {}),
+          ...(failure ? { failure } : {}),
+          ...(failure === 'usage-limit' && limit?.resetsAt ? { retryAt: limit.resetsAt } : {}),
+        },
+        final?.text,
+      );
     };
 
     child.on('error', (error) => finish(null, error));
@@ -189,6 +236,14 @@ export function outcomeOf(input: {
   if (input.final) return { status: input.final.isError ? 'FAILED' : 'SUCCEEDED', outcome: clipOutcome(input.final.text) };
   const stderr = input.stderrTail.trim();
   return { status: 'FAILED', outcome: stderr || `Claude Code exited with code ${input.exitCode ?? 'unknown'} before finishing.` };
+}
+
+/** Why a run failed, so the hub's line can retry, wait for the usage limit, or ask you. */
+export function failureKind(input: { timedOut: boolean; limit?: { resetsAt?: string }; final?: FinalResult }): RunFailure {
+  if (input.timedOut) return 'timeout';
+  if (input.limit) return 'usage-limit';
+  if (input.final?.subtype === 'error_max_turns') return 'max-turns';
+  return 'error';
 }
 
 /** Bytes of the start kept when an answer is too long for the hub; the rest of the room goes to the end. */

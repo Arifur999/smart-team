@@ -15,8 +15,10 @@ import { loadConfig } from './config.js';
 import { detectTools, folderResources } from './resources.js';
 import { AssetCache, type PreparedAssets } from './asset-cache.js';
 import { SkillCache } from './skill-cache.js';
+import { missingFiles, prepareTaskFolder, saveReply } from './stage-files.js';
 
-const AGENT_VERSION = '0.3.0';
+/** 0.4.0: runs production-line stages (role, task folder, required files). */
+const AGENT_VERSION = '0.4.0';
 
 const config = loadConfig();
 const runner = new ClaudeRunner(config.claude, () => config.folders.map((f) => f.path));
@@ -85,19 +87,37 @@ socket.on(AgentEvents.runStart, async (run: RunStartPayload) => {
   preparing = undefined;
   if (cancelled) return finish({ status: 'CANCELLED', outcome: 'Cancelled from the dashboard.' });
 
+  // A production-line stage works inside the task's own folder, with the brief written there first.
+  const role = run.role;
+  let taskDir: string | undefined;
+  if (role) {
+    const prepared = prepareTaskFolder(run.workDir, role, config.folders.map((f) => f.path));
+    if ('error' in prepared) return finish({ status: 'FAILED', failure: 'error', outcome: prepared.error });
+    taskDir = prepared.dir;
+  }
+
   const names = (run.skills ?? []).map((s) => s.name);
   const fileCount = (run.assets ?? []).length;
   runner.start(
     run,
     {
       onLogs: (entries, usage) => socket.emit(AgentEvents.runLog, { runId: run.runId, entries, ...(usage ? { usage } : {}) } satisfies RunLogPayload),
-      onFinished: finish,
+      onFinished: (result, fullText) => {
+        if (!role || !taskDir) return finish(result);
+        // Save the reply first: some stages must leave it as one of their required files.
+        const savedReplyTo = result.status === 'SUCCEEDED' && fullText ? saveReply(taskDir, role.saveReplyTo, fullText) : null;
+        const missing = result.status === 'SUCCEEDED' ? missingFiles(taskDir, role.requiredFiles) : [];
+        finish({ ...result, report: { missing, savedReplyTo, uploaded: [], uploadErrors: [] } });
+      },
     },
     {
       ...(pluginDir ? { pluginDir } : {}),
       addDirs: files.addDirs,
       promptSuffix: files.promptSuffix,
+      ...(taskDir ? { cwd: taskDir } : {}),
+      ...(role?.timeoutMinutes ? { timeoutMinutes: role.timeoutMinutes } : {}),
       notes: [
+        ...(role ? [`${role.memberName} · ${role.stageLabel} · ${taskDir}`] : []),
         names.length ? `Loaded ${names.length} team skills: ${names.join(', ')}` : 'No team skills for this run.',
         ...(fileCount ? [`${fileCount} file${fileCount === 1 ? '' : 's'} from the brief ready.`] : []),
       ],

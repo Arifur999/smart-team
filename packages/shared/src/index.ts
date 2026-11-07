@@ -1,4 +1,5 @@
 // Contract between hub, node agents and the dashboard. Change both sides together.
+import type { DeliverableSpec, FixNote, LineSettings, StageAccess, StageKind, Verdict } from './lines.js';
 import { TEAM_IDS, type MemberRole, type TeamId } from './teams.js';
 
 export const AGENT_NAMESPACE = '/agents';
@@ -133,6 +134,91 @@ export interface CreateTaskInput {
   deviceId: string;
   /** Must be one of the device's shared folders, or inside one. */
   workDir: string;
+  /** Your choices for the team's production line; the rest come from the line's defaults. */
+  lineSettings?: Partial<LineSettings>;
+}
+
+/** Where a task stands on its production line, for the board, the office and the badges. */
+export interface LineSummary {
+  key: string;
+  label: string;
+  /** The stage the task is at; null once it is done or cancelled. */
+  stage: string | null;
+  stageLabel: string | null;
+  kind: StageKind | null;
+  /** Who works on it now (a member id), or "you". */
+  ownerId: string | null;
+  ownerName: string | null;
+  /** working: a member is on it. queued: waiting for the PC. paused: waiting for a usage limit to reset. waiting: your turn. blocked: stopped, needs you. */
+  state: 'working' | 'queued' | 'paused' | 'waiting' | 'blocked' | 'done' | 'cancelled';
+  /** Why it waits or stopped (your check, a gate that could not decide, an error). */
+  note: string | null;
+  round: number;
+  fixesUsed: number;
+  maxFixes: number;
+  /** The main gate's latest score, out of 100. */
+  score: number | null;
+  passMark: number;
+  settings: LineSettings;
+  /** When the current step began. */
+  since: string | null;
+  /** No sign of life from a working stage for a while. */
+  stuck: boolean;
+  /** Every stage of the line, in order, with how this task did there. */
+  path: StageStep[];
+}
+
+export interface StageStep {
+  key: string;
+  status: 'pending' | 'active' | 'waiting' | 'done' | 'skipped' | 'failed';
+  /** Times the task went through this stage. */
+  rounds: number;
+  /** Time spent there in finished and current rounds. */
+  seconds: number;
+  agentId: string | null;
+  score: number | null;
+  /** Times this stage's work was sent back to be redone. */
+  sentBack: number;
+}
+
+export type LineAction = 'approve' | 'send-back' | 'retry' | 'skip';
+
+export interface LineStepRunView {
+  id: string;
+  attempt: number;
+  status: RunStatus;
+  failure: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  costUsd: number | null;
+}
+
+export interface LineStepView {
+  id: string;
+  stage: string;
+  label: string;
+  kind: StageKind;
+  ownerId: string;
+  round: number;
+  status: 'ACTIVE' | 'WAITING' | 'DONE' | 'SENT_BACK' | 'SKIPPED' | 'FAILED' | 'CANCELLED';
+  reason: string;
+  score: number | null;
+  summary: string | null;
+  comment: string | null;
+  decidedBy: string | null;
+  /** What this step had to address. */
+  notes: FixNote[];
+  verdict: Verdict | null;
+  startedAt: string;
+  finishedAt: string | null;
+  runs: LineStepRunView[];
+}
+
+/** Your notes when you send work back; pick a stage, or let the critic route them. */
+export interface SendBackInput {
+  notes: string;
+  items?: { text: string; at?: string; scene?: string }[];
+  stage?: string;
 }
 
 export interface TaskSummary {
@@ -153,6 +239,8 @@ export interface TaskSummary {
   /** Claude's final answer, or why the run failed. */
   outcome: string | null;
   costUsd: number | null;
+  /** Set for tasks on a production line. */
+  line: LineSummary | null;
 }
 
 export interface TaskDetail extends TaskSummary {
@@ -162,6 +250,10 @@ export interface TaskDetail extends TaskSummary {
   canFollowUp: boolean;
   /** True when a plan is ready and waiting for your approval. */
   canApprove: boolean;
+  /** Line tasks: every step so far, oldest first. */
+  steps: LineStepView[];
+  /** Line tasks: what you can do now. */
+  lineActions: LineAction[];
 }
 
 export interface FollowUpInput {
@@ -300,12 +392,33 @@ export const INTAKE_TEMPLATES: Record<TeamId, IntakeField[]> = {
   nextEditor: [
     BASE_FIELDS.goal,
     { id: 'platform', label: 'Platform', question: 'Where will the video go: Reel, Short, YouTube, an ad, something else?', kind: 'text', required: true },
-    { id: 'format', label: 'Length and format', question: 'How long should it be, and which aspect ratio?', kind: 'text', required: true },
-    { id: 'footage', label: 'Raw footage', question: 'Please share the raw footage.', kind: 'files', required: true, tag: 'raw-footage' },
-    { id: 'vfx', label: 'VFX references', question: 'Share the VFX or editing style references you want matched.', kind: 'files', required: true, tag: 'vfx-reference' },
+    {
+      id: 'format',
+      label: 'Length and formats',
+      question: 'How long should it be, and which formats do you need? Name the main aspect ratio first (for example 16:9 master, plus 9:16 and 1:1).',
+      kind: 'text',
+      required: true,
+    },
+    {
+      id: 'footage',
+      label: 'Raw footage',
+      question: 'Share any raw footage to cut. For a motion-graphics video with no footage, say "none".',
+      kind: 'files',
+      required: false,
+      tag: 'raw-footage',
+    },
+    { id: 'vfx', label: 'Style reference', question: 'Share the video whose style you want: the team reads it from start to finish.', kind: 'files', required: true, tag: 'vfx-reference' },
     { id: 'images', label: 'Reference images', question: 'Any reference images or a mood board?', kind: 'files', required: false, tag: 'image' },
-    { id: 'audio', label: 'Music and sound', question: 'Music and sound effects to use?', kind: 'files', required: false, tag: 'music' },
-    { id: 'brand', label: 'Brand', question: 'Logo, colours or fonts to use?', kind: 'files', required: false, tag: 'brand' },
+    {
+      id: 'copy',
+      label: 'On-screen text',
+      question: 'Write every word that must appear on screen, exactly as it should read (titles, services, tagline, end card).',
+      kind: 'longtext',
+      required: true,
+    },
+    { id: 'sound', label: 'Sound', question: 'Should it have sound: none, music, or music and sound effects?', kind: 'text', required: true },
+    { id: 'audio', label: 'Music files', question: 'Any music or sound files to use?', kind: 'files', required: false, tag: 'music' },
+    { id: 'brand', label: 'Brand', question: 'Logo, colours or fonts to use, or the website they come from?', kind: 'files', required: false, tag: 'brand' },
     { id: 'captions', label: 'Captions', question: 'Do you want captions? In which language and style?', kind: 'text', required: false },
     BASE_FIELDS.done,
     BASE_FIELDS.deadline,
@@ -361,6 +474,54 @@ export interface RunStartPayload {
   assets: RunAsset[];
   /** Continue this Claude Code session instead of starting a new one. */
   resumeSessionId?: string;
+  /** Set for a production-line stage: who the member is and how the stage runs. Absent: the mode decides. */
+  role?: RunRole;
+}
+
+// ---- Production lines: what an agent is told, and what it reports ----
+
+/** Agents older than this run line stages by mode only, so the hub refuses to send them one. */
+export const MIN_LINE_AGENT_VERSION = '0.4.0';
+
+/** Why a run failed, so the line knows whether to retry, wait or ask you. */
+export type RunFailure = 'usage-limit' | 'max-turns' | 'timeout' | 'agent-lost' | 'agent-outdated' | 'error';
+
+/** A file the agent writes into the task folder before Claude starts, such as the brief. */
+export interface StageFile {
+  path: string;
+  content: string;
+}
+
+/** How one production-line stage runs on the PC. Paths are relative to the task folder, with forward slashes. */
+export interface RunRole {
+  memberId: string;
+  memberName: string;
+  stage: string;
+  stageLabel: string;
+  /** The member's persona and working rules, appended to Claude Code's system prompt. */
+  systemPrompt: string;
+  access: StageAccess;
+  /** The task's folder inside workDir; created if missing, and Claude works inside it. */
+  taskFolder: string;
+  makeDirs: string[];
+  files: StageFile[];
+  /** Must exist and not be empty when Claude is done, or the stage is retried. */
+  requiredFiles: string[];
+  /** Uploaded to the hub for the Review Booth. */
+  deliverables: DeliverableSpec[];
+  /** Where the agent saves Claude's final reply. */
+  saveReplyTo?: string;
+  maxTurns?: number;
+  timeoutMinutes?: number;
+  model?: string;
+}
+
+/** The agent's own check after a line run. */
+export interface RunReport {
+  missing: string[];
+  savedReplyTo: string | null;
+  uploaded: { id: string; path: string }[];
+  uploadErrors: string[];
 }
 
 export interface RunCancelPayload {
@@ -392,6 +553,11 @@ export interface RunFinishedPayload {
   usage?: TokenUsage;
   /** Claude Code's session id, so a follow-up can continue the same conversation. */
   sessionId?: string;
+  failure?: RunFailure;
+  /** When a usage limit resets (ISO), if Claude said. */
+  retryAt?: string;
+  /** Line runs only: required files, saved reply and uploads. */
+  report?: RunReport;
 }
 
 // ---- Command bot ----

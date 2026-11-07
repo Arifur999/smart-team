@@ -1,20 +1,30 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  defaultLineKey,
   FIRST_AGENT_SEQ,
+  lineByKey,
   runAgentId,
   type AgentStats,
   type CreateTaskInput,
   type FinishedRunStatus,
+  type FixNote,
+  type LineStepView,
   type LogEntry,
   type LogKind,
+  type RunFailure,
   type RunMode,
+  type RunReport,
+  type RunRole,
   type TaskDetail,
   type TaskStatus,
   type TaskSummary,
   type TeamId,
   type TokenUsage,
+  type Verdict,
 } from '@smart-team/shared';
+import { getEnv } from '../env.js';
 import type { Prisma } from '../generated/prisma/client.js';
+import { lineActions, lineSummaryOf, lineTaskStatus, type StepRow } from '../line/line-status.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 const NEWEST_FIRST = [{ createdAt: 'desc' }, { id: 'desc' }] as const satisfies Prisma.RunOrderByWithRelationInput[];
@@ -34,6 +44,26 @@ const RUN_SELECT = {
   task: { select: { team: true } },
 } satisfies Prisma.RunSelect;
 
+const OLDEST_FIRST = [{ createdAt: 'asc' }, { id: 'asc' }] as const satisfies Prisma.LineStepOrderByWithRelationInput[];
+
+/** A line step as summaries need it: light, with its newest run. */
+const STEP_SELECT = {
+  id: true,
+  stage: true,
+  kind: true,
+  ownerId: true,
+  round: true,
+  status: true,
+  reason: true,
+  score: true,
+  summary: true,
+  comment: true,
+  decidedBy: true,
+  startedAt: true,
+  finishedAt: true,
+  runs: { select: { status: true, mode: true, updatedAt: true }, orderBy: NEWEST_FIRST, take: 1 },
+} satisfies Prisma.LineStepSelect;
+
 const TASK_SELECT = {
   id: true,
   team: true,
@@ -41,14 +71,19 @@ const TASK_SELECT = {
   createdAt: true,
   deviceId: true,
   workDir: true,
+  line: true,
+  lineSettings: true,
+  resumeAt: true,
   device: { select: { name: true } },
   brief: { select: { phase: true } },
-  // The newest run is the task's current state once the brief is locked.
+  // The newest run is the task's current state once the brief is locked (for tasks not on a line).
   runs: { select: RUN_SELECT, orderBy: NEWEST_FIRST, take: 1 },
+  steps: { select: STEP_SELECT, orderBy: OLDEST_FIRST },
 } satisfies Prisma.TaskSelect;
 
 type TaskRow = Prisma.TaskGetPayload<{ select: typeof TASK_SELECT }>;
 type RunRow = Prisma.RunGetPayload<{ select: typeof RUN_SELECT }>;
+type StepSelectRow = Prisma.LineStepGetPayload<{ select: typeof STEP_SELECT }>;
 
 /** What the executing session is told once you approve its plan. */
 export const APPROVAL_PROMPT = 'The plan is approved. Carry it out now, step by step, and summarize what you changed when you are done.';
@@ -61,6 +96,11 @@ export interface StartableRun {
   workDir: string;
   mode: RunMode;
   resumeSessionId?: string;
+  /** Line runs: the stage and how it runs, plus its skill keys. */
+  stage: string | null;
+  role: (RunRole & { skillKeys: string[] }) | null;
+  /** The PC's agent version, so line runs only go to agents that understand them. */
+  agentVersion: string;
 }
 
 /** Data access for tasks and runs. Sending things to agents or the dashboard is RunDispatcher's job. */
@@ -68,13 +108,32 @@ export interface StartableRun {
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Every task starts with the intake: no run exists until the intake agent queues its brief check. */
+  /**
+   * Every task starts with the intake: no run exists until the intake agent queues its brief check.
+   * Teams listed in LINE_TEAMS put the task on their production line, which starts once you confirm the brief.
+   */
   async create(input: CreateTaskInput): Promise<TaskSummary> {
+    const line = getEnv().LINE_TEAMS.includes(input.team) ? defaultLineKey(input.team) : null;
     const task = await this.prisma.task.create({
-      data: { team: input.team, title: input.title, deviceId: input.deviceId, workDir: input.workDir, brief: { create: {} } },
+      data: {
+        team: input.team,
+        title: input.title,
+        deviceId: input.deviceId,
+        workDir: input.workDir,
+        line,
+        lineSettings: (input.lineSettings ?? {}) as Prisma.InputJsonValue,
+        brief: { create: {} },
+      },
       select: { id: true },
     });
     return this.summary(task.id);
+  }
+
+  /** The task's production line key, or null. */
+  async lineOf(taskId: string): Promise<string | null> {
+    const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: { line: true } });
+    if (!task) throw new NotFoundException('Task not found');
+    return task.line;
   }
 
   /** Queues a run on the task's own PC and folder. Used by the intake for its brief check and for the plan. */
@@ -103,7 +162,7 @@ export class TasksService {
 
   async list(limit = 50): Promise<TaskSummary[]> {
     const tasks = await this.prisma.task.findMany({ select: TASK_SELECT, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: limit });
-    return tasks.map(toSummary);
+    return tasks.map((t) => toSummary(t));
   }
 
   async summary(taskId: string): Promise<TaskSummary> {
@@ -113,7 +172,9 @@ export class TasksService {
   }
 
   async detail(taskId: string): Promise<TaskDetail> {
-    const summary = await this.summary(taskId);
+    const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: TASK_SELECT });
+    if (!task) throw new NotFoundException('Task not found');
+    const summary = toSummary(task);
     const logs = await this.prisma.runLog.findMany({
       where: { run: { taskId } },
       select: { runId: true, seq: true, kind: true, text: true, at: true },
@@ -121,12 +182,56 @@ export class TasksService {
     });
 
     const status = summary.status;
+    const line = lineByKey(task.line);
+    const steps = line ? await this.stepViews(taskId) : [];
     return {
       ...summary,
       lines: logs.map((l) => ({ runId: l.runId, seq: l.seq, kind: l.kind as LogKind, text: l.text, at: l.at.toISOString() })),
       canFollowUp: isFinished(status) || status === 'AWAITING_APPROVAL',
       canApprove: status === 'AWAITING_APPROVAL',
+      steps,
+      lineActions: summary.line ? lineActions(summary.line, task.steps.length ? toStepRow(task.steps.at(-1)!) : null) : [],
     };
+  }
+
+  /** Every line step of a task with its runs, oldest first. */
+  async stepViews(taskId: string): Promise<LineStepView[]> {
+    const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: { line: true } });
+    const line = lineByKey(task?.line);
+    const steps = await this.prisma.lineStep.findMany({
+      where: { taskId },
+      orderBy: OLDEST_FIRST,
+      include: {
+        runs: { select: { id: true, attempt: true, status: true, failure: true, startedAt: true, finishedAt: true, costUsd: true }, orderBy: OLDEST_FIRST },
+      },
+    });
+    return steps.map((s) => ({
+      id: s.id,
+      stage: s.stage,
+      label: line?.stages.find((d) => d.key === s.stage)?.label ?? s.stage,
+      kind: s.kind === 'WORK' ? 'work' : s.kind === 'GATE' ? 'gate' : 'check',
+      ownerId: s.ownerId,
+      round: s.round,
+      status: s.status,
+      reason: s.reason,
+      score: s.score,
+      summary: s.summary,
+      comment: s.comment,
+      decidedBy: s.decidedBy,
+      notes: (s.notes ?? []) as unknown as FixNote[],
+      verdict: s.kind === 'GATE' && s.result ? (s.result as unknown as Verdict) : null,
+      startedAt: s.startedAt.toISOString(),
+      finishedAt: s.finishedAt?.toISOString() ?? null,
+      runs: s.runs.map((r) => ({
+        id: r.id,
+        attempt: r.attempt,
+        status: r.status,
+        failure: r.failure,
+        startedAt: r.startedAt?.toISOString() ?? null,
+        finishedAt: r.finishedAt?.toISOString() ?? null,
+        costUsd: r.costUsd ? r.costUsd.toNumber() : null,
+      })),
+    }));
   }
 
   async newestRun(taskId: string): Promise<RunRow> {
@@ -143,11 +248,24 @@ export class TasksService {
     const busy = await this.prisma.run.count({ where: { deviceId, status: 'RUNNING' } });
     if (busy > 0) return null;
 
-    const next = await this.prisma.run.findFirst({
-      where: { deviceId, status: 'QUEUED' },
-      select: { id: true, taskId: true, workDir: true, prompt: true, mode: true, task: { select: { team: true } } },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    });
+    // Brief checks go first (you are waiting in the chat); then the oldest task, so one video's stages stay together.
+    const select = {
+      id: true,
+      taskId: true,
+      workDir: true,
+      prompt: true,
+      mode: true,
+      stepId: true,
+      stage: true,
+      role: true,
+      resumeSessionId: true,
+      task: { select: { team: true, resumeAt: true } },
+      device: { select: { agentVersion: true } },
+    } satisfies Prisma.RunSelect;
+    const ready = { deviceId, status: 'QUEUED', OR: [{ task: { resumeAt: null } }, { task: { resumeAt: { lte: now } } }] } satisfies Prisma.RunWhereInput;
+    const next =
+      (await this.prisma.run.findFirst({ where: { ...ready, mode: 'INTAKE' }, select, orderBy: OLDEST_FIRST })) ??
+      (await this.prisma.run.findFirst({ where: ready, select, orderBy: [{ task: { createdAt: 'asc' } }, ...OLDEST_FIRST] }));
     if (!next) return null;
 
     const { count } = await this.prisma.run.updateMany({
@@ -156,17 +274,22 @@ export class TasksService {
     });
     if (count === 0) return null;
 
+    const { task, device, stepId, role, resumeSessionId: chosen, ...run } = next;
+    const agentVersion = device.agentVersion;
+    if (stepId) {
+      // Line runs chose their session when they were queued.
+      return { ...run, team: task.team, agentVersion, role: role as unknown as StartableRun['role'], ...(chosen ? { resumeSessionId: chosen } : {}) };
+    }
+
     // Continue the conversation of the task's previous run by the same kind of agent on this device:
-    // the intake agent resumes its own checks, the planner and worker share theirs.
+    // the intake agent resumes its own checks, the planner and worker share theirs. Line runs never count.
     const sameAgent: RunMode[] = next.mode === 'INTAKE' ? ['INTAKE'] : ['PLAN', 'EXECUTE'];
     const previous = await this.prisma.run.findFirst({
-      where: { taskId: next.taskId, deviceId, id: { not: next.id }, sessionId: { not: null }, mode: { in: sameAgent } },
+      where: { taskId: next.taskId, deviceId, id: { not: next.id }, sessionId: { not: null }, mode: { in: sameAgent }, stepId: null },
       select: { sessionId: true },
       orderBy: NEWEST_FIRST,
     });
-
-    const { task, ...run } = next;
-    return { ...run, team: task.team, ...(previous?.sessionId ? { resumeSessionId: previous.sessionId } : {}) };
+    return { ...run, team: task.team, agentVersion, role: null, ...(previous?.sessionId ? { resumeSessionId: previous.sessionId } : {}) };
   }
 
   /** The run's task id, but only when the run belongs to this device. Agents may only report on their own runs. */
@@ -191,9 +314,19 @@ export class TasksService {
   /** Ends a run that is still queued or running. Returns false when it had already ended. */
   async finish(
     runId: string,
-    result: { status: FinishedRunStatus; outcome?: string; costUsd?: number; sessionId?: string; usage?: TokenUsage },
+    result: {
+      status: FinishedRunStatus;
+      outcome?: string;
+      costUsd?: number;
+      sessionId?: string;
+      usage?: TokenUsage;
+      failure?: RunFailure;
+      retryAt?: string;
+      report?: RunReport;
+    },
     now = new Date(),
   ): Promise<boolean> {
+    const report = result.report || result.retryAt ? { ...(result.report ?? {}), ...(result.retryAt ? { retryAt: result.retryAt } : {}) } : null;
     const { count } = await this.prisma.run.updateMany({
       where: { id: runId, status: { in: ['QUEUED', 'RUNNING'] } },
       data: {
@@ -201,6 +334,8 @@ export class TasksService {
         outcome: result.outcome ?? null,
         costUsd: result.costUsd ?? null,
         finishedAt: now,
+        ...(result.failure ? { failure: result.failure } : {}),
+        ...(report ? { report: report as Prisma.InputJsonValue } : {}),
         ...(result.sessionId ? { sessionId: result.sessionId } : {}),
         ...(result.usage ? tokenColumns(result.usage) : {}),
       },
@@ -253,7 +388,7 @@ export class TasksService {
 
     await this.prisma.run.updateMany({
       where: { id: { in: running.map((r) => r.id) }, status: 'RUNNING' },
-      data: { status: 'FAILED', outcome: reason, finishedAt: now },
+      data: { status: 'FAILED', outcome: reason, failure: 'agent-lost', finishedAt: now },
     });
     return running.map((r) => ({ runId: r.id, taskId: r.taskId }));
   }
@@ -300,7 +435,12 @@ export function taskStatus(run: Pick<RunRow, 'mode' | 'status'>): TaskStatus {
   return run.mode === 'PLAN' && run.status === 'SUCCEEDED' ? 'AWAITING_APPROVAL' : run.status;
 }
 
-function toSummary(task: TaskRow): TaskSummary {
+function toStepRow(s: StepSelectRow): StepRow {
+  const run = s.runs[0];
+  return { ...s, lastRun: run ? { status: run.status, mode: run.mode, updatedAt: run.updatedAt } : null };
+}
+
+function toSummary(task: TaskRow, now = new Date()): TaskSummary {
   const run = task.runs[0];
   const intakePhase = task.brief?.phase ?? null;
   // Until the brief is locked the task is in intake, whatever the intake agent's own runs are doing.
@@ -309,20 +449,28 @@ function toSummary(task: TaskRow): TaskSummary {
   const workDir = task.workDir ?? run?.workDir;
   if (!deviceId || !workDir) throw new Error(`Task ${task.id} has no PC`);
 
+  const lineDef = lineByKey(task.line);
+  const steps = task.steps.map(toStepRow);
+  const line = lineDef ? lineSummaryOf({ line: lineDef, settingsRaw: task.lineSettings, steps, resumeAt: task.resumeAt, now }) : null;
+  const current = steps.at(-1);
+  // A line task that has started is described by its current step; before that, by the intake.
+  const onLine = line && !inIntake && current;
+
   return {
     id: task.id,
     team: task.team,
     title: task.title,
-    status: inIntake || !run ? 'INTAKE' : taskStatus(run),
+    status: inIntake || (!run && !onLine) ? 'INTAKE' : onLine ? lineTaskStatus(line) : taskStatus(run!),
     mode: inIntake || !run ? 'INTAKE' : run.mode,
     intakePhase,
     deviceId,
     deviceName: task.device?.name ?? run?.device.name ?? 'Unknown PC',
     workDir,
     createdAt: task.createdAt.toISOString(),
-    startedAt: run?.startedAt?.toISOString() ?? null,
-    finishedAt: run?.finishedAt?.toISOString() ?? null,
-    outcome: run?.outcome ?? null,
+    startedAt: onLine ? current.startedAt.toISOString() : (run?.startedAt?.toISOString() ?? null),
+    finishedAt: onLine ? (current.finishedAt?.toISOString() ?? null) : (run?.finishedAt?.toISOString() ?? null),
+    outcome: onLine ? (current.comment ?? current.summary ?? run?.outcome ?? null) : (run?.outcome ?? null),
     costUsd: run?.costUsd ? run.costUsd.toNumber() : null,
+    line,
   };
 }

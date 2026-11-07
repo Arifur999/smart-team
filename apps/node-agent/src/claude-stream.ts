@@ -8,6 +8,8 @@ export interface ParsedLine {
 export interface FinalResult {
   isError: boolean;
   text: string;
+  /** Claude's result subtype, e.g. "success" or "error_max_turns". */
+  subtype?: string;
   costUsd?: number;
   /** The session's token total, when Claude reports it. */
   usage?: TokenUsage;
@@ -100,6 +102,7 @@ export function parseStreamLine(raw: string): ParsedEvent {
         final: {
           isError,
           text,
+          ...(typeof event.subtype === 'string' ? { subtype: event.subtype } : {}),
           ...(typeof event.total_cost_usd === 'number' ? { costUsd: event.total_cost_usd } : {}),
           ...(readUsage(event.usage) ? { usage: readUsage(event.usage)! } : {}),
         },

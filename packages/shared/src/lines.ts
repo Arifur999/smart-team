@@ -4,6 +4,9 @@ import { LEADERSHIP, TEAMS, type MemberRole, type TeamId, type TeamMember } from
 /** The owner of the stages where you act: the brief, your checks and the final review. */
 export const YOU = 'you';
 
+/** A working stage with no sign of life (no new tokens) for this long shows as stuck. */
+export const STUCK_AFTER_MS = 15 * 60_000;
+
 /** work: a member makes something. gate: a member judges it and may send it back. check: you decide. */
 export type StageKind = 'work' | 'gate' | 'check';
 /** plan: Claude Code plan mode (reads only). review: may run commands but not edit files. write: full access. */

@@ -27,6 +27,15 @@ const envSchema = z.object({
     .string()
     .default(join(homedir(), '.claude', 'skills'))
     .transform((v) => v.split(delimiter).filter(Boolean)),
+  /** Teams whose new tasks go on their production line, comma-separated. Others keep plan -> approve -> execute. */
+  LINE_TEAMS: z
+    .string()
+    .default('nextEditor')
+    .transform((v) => v.split(',').map((t) => t.trim()).filter(Boolean)),
+  /** Where the hub keeps files agents upload for the Review Booth. */
+  DELIVERABLES_DIR: z.string().default(resolve(process.cwd(), 'uploads', 'deliverables')),
+  /** Largest single deliverable, in megabytes. */
+  MAX_DELIVERABLE_MB: z.coerce.number().int().positive().default(2048),
 });
 
 export type Env = z.infer<typeof envSchema>;
