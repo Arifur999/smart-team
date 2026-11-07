@@ -25,6 +25,7 @@ import { AssetsService } from '../intake/assets.service.js';
 import { RunDispatcher, type RunEndedEvent } from '../orchestration/run-dispatcher.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { briefAnswers, briefFiles } from './brief-files.js';
+import { RulesService } from '../rules/rules.service.js';
 import { parseHouseRules, rulesFor, type HouseRule } from './house-rules.js';
 import {
   buildDetour,
@@ -87,6 +88,7 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly runs: RunDispatcher,
     private readonly assets: AssetsService,
+    private readonly rules: RulesService,
   ) {}
 
   onModuleInit() {
@@ -107,7 +109,7 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
     await this.handle(taskId, async (tx) => {
       const ctx = await this.context(tx, taskId);
       if (ctx.steps.length > 0) return {};
-      const folder = ctx.task.folder ?? taskFolderName(ctx.task.title, ctx.task.id, ctx.task.createdAt);
+      const folder = ctx.task.folder ?? taskFolderName(ctx.task.title, ctx.task.id, ctx.task.createdAt, ctx.line.folderRoot);
       await tx.task.update({ where: { id: taskId }, data: { folder, lineSettings: ctx.settings as unknown as Prisma.InputJsonValue } });
       ctx.task.folder = folder;
       const brief = ctx.line.stages[0]!;
@@ -222,6 +224,26 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
    * your notes into routed fixes. A gate that could not decide gets its own fixes plus your notes.
    */
   async sendBack(taskId: string, input: SendBackInput): Promise<void> {
+    await this.sendBackNow(taskId, input);
+    // Your notes may be worth keeping as house rules: Nick Fury proposes them in the background.
+    void this.proposeRules(taskId, input);
+  }
+
+  private async proposeRules(taskId: string, input: SendBackInput): Promise<void> {
+    const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: { team: true, line: true, lineSettings: true } });
+    const line = lineByKey(task?.line);
+    if (!task || !line) return;
+    const notes = [...(input.items ?? []).map((i) => `${i.at ? `[${i.at}] ` : ''}${i.text}`), input.notes.trim()].filter(Boolean).join('\n');
+    await this.rules.proposeFrom({
+      taskId,
+      team: task.team as TeamId,
+      stages: line.stages.filter((s) => s.kind !== 'check').map((s) => s.key),
+      notes,
+      trust: readSettings(task.lineSettings, line).trust,
+    });
+  }
+
+  private async sendBackNow(taskId: string, input: SendBackInput): Promise<void> {
     const items = [...(input.items ?? []), ...(input.notes.trim() ? [{ text: input.notes.trim() }] : [])];
     if (items.length === 0) throw new BadRequestException('Write what should change.');
     await this.handle(taskId, async (tx) => {
@@ -526,9 +548,9 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
     const stage = this.stageOf(ctx, step.stage);
     const member = memberById(stage.owner);
     if (!member) throw new ConflictException(`Unknown member ${stage.owner}.`);
-    const folder = ctx.task.folder ?? taskFolderName(ctx.task.title, ctx.task.id, ctx.task.createdAt);
+    const folder = ctx.task.folder ?? taskFolderName(ctx.task.title, ctx.task.id, ctx.task.createdAt, ctx.line.folderRoot);
     const round = step.round;
-    const v = Math.max(1, ctx.steps.filter((s) => s.stage === 'animate' && s.status !== 'SKIPPED').length);
+    const v = Math.max(1, ctx.steps.filter((s) => s.stage === ctx.line.versionStage && s.status !== 'SKIPPED').length);
     const vars = { round, v };
     const folderAbs = absTaskFolder(ctx.task.workDir, folder);
 
@@ -574,7 +596,7 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
       systemPrompt: stageSystemPrompt(promptInput),
       access: stage.access ?? 'write',
       taskFolder: folder,
-      makeDirs: writeScope(stage, round, v).filter((p) => !p.endsWith('.json')),
+      makeDirs: writeScope(stage, round, v).filter((p) => !p.endsWith('.json') && !p.startsWith('@')),
       files: briefFiles({ title: ctx.task.title, team: ctx.task.team, summary: ctx.brief.summary, answers: ctx.brief.answers, assets, settings: ctx.settings }),
       requiredFiles: promptInput.requiredFiles,
       deliverables: (stage.deliverables ?? []).map((d) => ({ ...d, glob: fillStagePath(d.glob, vars) })),

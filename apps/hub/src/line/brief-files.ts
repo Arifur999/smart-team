@@ -1,4 +1,4 @@
-import { INTAKE_TEMPLATES, type AssetView, type LineSettings, type StageFile, type TeamId } from '@smart-team/shared';
+import { defaultLineKey, INTAKE_TEMPLATES, type AssetView, type LineSettings, type StageFile, type TeamId } from '@smart-team/shared';
 import { directionText } from './stage-jobs.js';
 
 /** The brief's typed answers by field id. */
@@ -52,7 +52,7 @@ export function briefFiles(input: {
 
   return [
     { path: '00-brief/brief.md', content: brief },
-    { path: '00-brief/direction.txt', content: `${input.settings.direction}\n${directionText(input.settings.direction)}\n` },
+    { path: '00-brief/direction.txt', content: `${input.settings.direction}\n${directionText(input.settings.direction, defaultLineKey(input.team) ?? undefined)}\n` },
     { path: '00-brief/assets.md', content: assets },
   ];
 }

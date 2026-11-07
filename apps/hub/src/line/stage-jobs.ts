@@ -1,9 +1,10 @@
+import { TEAM_PERSONAS, TEAM_STAGE_JOBS } from './stage-jobs-teams.js';
 import type { LineDirection } from '@smart-team/shared';
 
 /** What one stage must do, given the task's direction and versions. Keyed "<line>/<stage>". */
 export interface StageJob {
   skills: string;
-  job: (c: { direction: LineDirection; round: number; v: number }) => string;
+  job: (c: { direction: LineDirection; round: number; v: number; lineKey?: string }) => string;
   /** The JSON the member ends with. */
   reply: string;
 }
@@ -11,9 +12,14 @@ export interface StageJob {
 const MATCH = 'Match the reference closely: keep its beats, light, layout, motion and transitions; change only the brand content.';
 const CONCEPT = 'New concept in the same spirit: keep the mood, quality bar and pace; change the idea, the layout system and the transitions.';
 
-export const directionText = (d: LineDirection) => (d === 'match' ? MATCH : CONCEPT);
+const WORK_MATCH = 'Follow the references closely: their structure, look and tone, with the client\'s own content and brand.';
+const WORK_CONCEPT = 'A fresh concept: meet the brief and the quality of the references without copying them.';
 
-export const STAGE_JOBS: Record<string, StageJob> = {
+/** What the direction means on a line; dev work has no reference direction. */
+export const directionText = (d: LineDirection, lineKey = 'nextEditor.video') =>
+  lineKey.startsWith('nextEditor.') ? (d === 'match' ? MATCH : CONCEPT) : lineKey.startsWith('nextDev.') ? 'Build what the brief asks, nothing more.' : d === 'match' ? WORK_MATCH : WORK_CONCEPT;
+
+const VIDEO_STAGE_JOBS: Record<string, StageJob> = {
   'nextEditor.video/source': {
     skills: 'reference-match, video-production, hyperframes-cli, media-use, and the client brand kit if there is one',
     job: () =>
@@ -130,7 +136,7 @@ export const STAGE_JOBS: Record<string, StageJob> = {
 };
 
 /** Short voice of each member, so a stage reads like that person. */
-export const PERSONAS: Record<string, string> = {
+const VIDEO_PERSONAS: Record<string, string> = {
   wolverine: 'You notice everything and take nothing on faith: you measure every frame before you describe it.',
   cyclops: 'You lead the team: clear direction, decisive, and you sign only what you would show the client.',
   'jean-grey': 'You see the finished picture before it exists and build it frame by frame with care.',
@@ -138,3 +144,6 @@ export const PERSONAS: Record<string, string> = {
   beast: 'You are the team\'s toughest critic: precise, evidence-first, never fooled by "it is fixed".',
   'captain-marvel': 'You hold the final line: nothing reaches the client unless every requirement is proven.',
 };
+
+export const STAGE_JOBS: Record<string, StageJob> = { ...VIDEO_STAGE_JOBS, ...TEAM_STAGE_JOBS };
+export const PERSONAS: Record<string, string> = { ...VIDEO_PERSONAS, ...TEAM_PERSONAS };

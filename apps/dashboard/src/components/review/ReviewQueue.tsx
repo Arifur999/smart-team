@@ -4,6 +4,7 @@ import type { TaskSummary } from '@smart-team/shared';
 import Link from 'next/link';
 import { useTasks } from '@/hooks/useTasks';
 import { shortDuration, useNow } from '@/hooks/useNow';
+import { HouseRules } from './HouseRules';
 
 /** Work that reached your final review, and what you decided lately. */
 export function ReviewQueue() {
@@ -19,7 +20,7 @@ export function ReviewQueue() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Review Booth</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted">
-          Watch the finished work next to its reference, read what the critic found, then approve it or send it back with notes.
+          Look at the finished work next to its reference, read what the critic found, then approve it or send it back with notes.
         </p>
       </header>
 
@@ -67,6 +68,8 @@ export function ReviewQueue() {
           </ul>
         </section>
       )}
+
+      <HouseRules />
     </main>
   );
 }

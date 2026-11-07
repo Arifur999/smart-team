@@ -33,7 +33,8 @@ export function NewTaskForm({ onClose, defaultTeam, onCreated }: Props) {
   const device = devices?.find((d) => d.id === deviceId);
   const folders = useMemo(() => device?.resources.filter((r) => r.kind === 'FOLDER' && r.path) ?? [], [device]);
   const line = team ? lineByKey(defaultLineKey(team)) : undefined;
-  const reader = line?.stages.find((s) => s.key === 'source');
+  const reader = line?.stages.find((s) => s.key === 'source' || s.key === 'reference');
+  const isVideo = line?.key === 'nextEditor.video';
   const readerName = reader ? (memberById(reader.owner)?.name ?? reader.owner) : null;
 
   async function submit(event: FormEvent) {
@@ -147,14 +148,14 @@ export function NewTaskForm({ onClose, defaultTeam, onCreated }: Props) {
                   checked={direction === 'match'}
                   onChange={() => setDirection('match')}
                   title="Match my reference"
-                  text={`${readerName} reads your reference from start to finish and the team copies its style, pacing and cuts.`}
+                  text={isVideo ? `${readerName} reads your reference from start to finish and the team copies its style, pacing and cuts.` : `${readerName} measures your references and the team follows their structure and look with your content.`}
                 />
                 <Choice
                   name="direction"
                   checked={direction === 'concept'}
                   onChange={() => setDirection('concept')}
                   title="Make something new"
-                  text="The team keeps the reference's mood and quality but designs its own idea, layout and transitions."
+                  text={isVideo ? "The team keeps the reference's mood and quality but designs its own idea, layout and transitions." : "The team keeps the references' quality but designs its own idea."}
                 />
               </div>
             )}

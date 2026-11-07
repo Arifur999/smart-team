@@ -21,7 +21,9 @@ export function ReviewBooth({ taskId }: { taskId: string }) {
   const [picked, setPicked] = useState<number | null>(null);
   const [compare, setCompare] = useState<Compare>('reference');
 
-  const list = versions?.versions.filter((v) => masterOf(v)) ?? [];
+  const isVideoLine = !task?.line || task.line.key === 'nextEditor.video';
+  // Video lines show versions that have a render; other lines (design screens, campaign copy) every version with files.
+  const list = versions?.versions.filter((v) => (isVideoLine ? masterOf(v) : v.files.length > 0)) ?? [];
   const current = list.find((v) => v.n === picked) ?? list.at(-1) ?? null;
   const previous = current ? list.filter((v) => v.n < current.n).at(-1) ?? null : null;
   const reference = versions?.references.find((d) => d.kind === 'VIDEO') ?? null;
@@ -54,7 +56,7 @@ export function ReviewBooth({ taskId }: { taskId: string }) {
           </Link>
           <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight">{task.title}</h1>
           <p className="mt-0.5 text-sm text-muted">
-            {task.line?.settings.direction === 'concept' ? 'New concept' : 'Match the reference'} · pass mark {task.line?.passMark ?? 80}
+            {isVideoLine ? (task.line?.settings.direction === 'concept' ? 'New concept' : 'Match the reference') : (lineByKey(task.line?.key)?.label ?? 'Work')} · pass mark {task.line?.passMark ?? 80}
             {task.line?.stageLabel ? ` · now at ${task.line.stageLabel}` : ''}
           </p>
         </div>
@@ -72,7 +74,21 @@ export function ReviewBooth({ taskId }: { taskId: string }) {
       )}
 
       {list.length === 0 ? (
-        <section className="mt-6 rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">No render yet. Versions show up here as Animate finishes them.</section>
+        <section className="mt-6 rounded-xl border border-dashed border-line p-8 text-center text-sm text-muted">
+          Nothing to review yet. Versions show up here as the team finishes them.
+        </section>
+      ) : !isVideoLine ? (
+        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="min-w-0 space-y-4">
+            <VersionFiles version={current} />
+            {versions.references.length > 0 && <Strip title="References" files={versions.references.filter((f) => f.kind === 'IMAGE')} />}
+          </div>
+          <aside className="space-y-4">
+            <VersionList list={list} current={current} onPick={setPicked} line={line} />
+            {current && <CriticNotes version={current} onSeek={() => {}} />}
+            {atReview && current && <Decision task={task} version={current.n} time={0} />}
+          </aside>
+        </div>
       ) : (
         <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0 space-y-4">
@@ -99,6 +115,43 @@ export function ReviewBooth({ taskId }: { taskId: string }) {
         </div>
       )}
     </main>
+  );
+}
+
+/** A version's files for lines without video: images large, documents as links to open. */
+function VersionFiles({ version }: { version: VersionView | null }) {
+  if (!version) return null;
+  // The newest upload of each path.
+  const latest = [...new Map([...version.files].sort((a, b) => a.version - b.version).map((f) => [f.path, f])).values()];
+  const images = latest.filter((f) => f.kind === 'IMAGE');
+  const docs = latest.filter((f) => f.kind !== 'IMAGE');
+  return (
+    <section aria-label={`Version ${version.n}`} className="space-y-4">
+      {docs.length > 0 && (
+        <ul className="flex flex-wrap gap-2 text-sm">
+          {docs.map((f) => (
+            <li key={f.id}>
+              <a href={hubFile(f.url)} target="_blank" rel="noreferrer" className="inline-flex rounded-lg border border-line bg-surface px-3 py-2 hover:bg-chip">
+                {f.label ?? f.path.split('/').pop()} <span className="ml-2 text-muted">{f.path.split('/').pop()}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      {images.length > 0 && (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {images.map((f) => (
+            <li key={f.id} className="overflow-hidden rounded-xl border border-line bg-surface">
+              <a href={hubFile(f.url)} target="_blank" rel="noreferrer">
+                {/* eslint-disable-next-line @next/next/no-img-element -- served by the hub, sizes unknown */}
+                <img src={hubFile(f.url)} alt={f.path.split('/').pop() ?? ''} loading="lazy" className="max-h-[70vh] w-full object-contain object-top" />
+              </a>
+              <p className="border-t border-line px-3 py-1.5 text-xs text-muted">{f.path}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

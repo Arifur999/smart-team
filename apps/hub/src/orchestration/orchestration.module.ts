@@ -9,6 +9,8 @@ import { AssetsService } from '../intake/assets.service.js';
 import { IntakeController } from '../intake/intake.controller.js';
 import { IntakeService } from '../intake/intake.service.js';
 import { LineController, LinesController } from '../line/line.controller.js';
+import { RulesController } from '../rules/rules.controller.js';
+import { RulesService } from '../rules/rules.service.js';
 import { LineService } from '../line/line.service.js';
 import { SkillsModule } from '../skills/skills.module.js';
 import { AgentStatsController } from '../tasks/agent-stats.controller.js';
@@ -35,6 +37,7 @@ import { RunDispatcher } from './run-dispatcher.js';
     BotController,
     LineController,
     LinesController,
+    RulesController,
     AgentDeliverablesController,
     DeliverablesController,
   ],
@@ -51,6 +54,7 @@ import { RunDispatcher } from './run-dispatcher.js';
     DevicesSweeper,
     RunDispatcher,
     LineService,
+    RulesService,
   ],
 })
 export class OrchestrationModule {}

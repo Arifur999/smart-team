@@ -1,3 +1,4 @@
+import { DESIGN_LINE, DEV_LINE, MARKETING_LINE } from './lines-teams.js';
 // Production lines: each team's work as a row of stages, each run by one member. Re-exported from index.ts.
 import { LEADERSHIP, TEAMS, type MemberRole, type TeamId, type TeamMember } from './teams.js';
 
@@ -88,7 +89,7 @@ export interface GateDef {
 }
 
 /** Brief answers that switch a skippable stage off, worked out by the hub. */
-export type SkipWhen = 'no-sound' | 'single-format';
+export type SkipWhen = 'no-sound' | 'single-format' | 'no-social' | 'no-search';
 
 export interface StageDef {
   key: string;
@@ -136,6 +137,10 @@ export interface LineDef {
   noun: { one: string; many: string };
   defaults: LineSettings;
   stages: StageDef[];
+  /** The work stage whose rounds are the versions (v1, v2...) the gates judge and the Review Booth shows. */
+  versionStage: string;
+  /** Where task folders go inside the work folder, e.g. ".smart-team" so a code repo stays clean. */
+  folderRoot?: string;
 }
 
 /** Rubric weights (out of 100) per direction; dimension scores are 0-10. */
@@ -158,6 +163,7 @@ export const LINES: LineDef[] = [
     label: 'Make a video',
     noun: { one: 'video', many: 'videos' },
     defaults: VIDEO_DEFAULTS,
+    versionStage: 'animate',
     stages: [
       { key: 'brief', label: 'New video', owner: YOU, kind: 'check', intake: true },
       {
@@ -310,6 +316,9 @@ export const LINES: LineDef[] = [
       { key: 'review', label: 'Review round', owner: YOU, kind: 'check', final: true },
     ],
   },
+  DEV_LINE,
+  DESIGN_LINE,
+  MARKETING_LINE,
 ];
 
 export function lineByKey(key: string | null | undefined): LineDef | undefined {

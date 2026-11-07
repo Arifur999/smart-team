@@ -86,6 +86,7 @@ export type TaskStatus = 'INTAKE' | RunStatus | 'AWAITING_APPROVAL';
 
 export * from './teams.js';
 export * from './lines.js';
+export { DESIGN_RUBRIC, DEV_RUBRIC, MARKETING_RUBRIC } from './lines-teams.js';
 
 /** Time and tokens one member has spent, across all their runs. */
 export interface AgentStats {
@@ -683,4 +684,36 @@ export function mentionedTeams(text: string): TeamId[] {
     if (team) found.add(team);
   }
   return [...found];
+}
+
+/** One active house rule, as the team's prompts get it. */
+export interface HouseRuleView {
+  id: string;
+  title: string;
+  applies: string[];
+  rule: string;
+  why: string | null;
+  check: string | null;
+}
+
+/** A rule Nick Fury proposed from your send-back notes, waiting for you to apply or dismiss it. */
+export interface RuleProposalView {
+  id: string;
+  team: string;
+  taskId: string | null;
+  title: string;
+  applies: string;
+  rule: string;
+  why: string;
+  check: string | null;
+  source: string;
+  createdAt: string;
+}
+
+/** House rules for one scope: "global" or a team id. */
+export interface RuleBookView {
+  scope: string;
+  label: string;
+  active: HouseRuleView[];
+  proposals: RuleProposalView[];
 }

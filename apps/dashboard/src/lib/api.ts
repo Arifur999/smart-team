@@ -10,6 +10,7 @@ import type {
   IntakeView,
   LineSettings,
   LineView,
+  RuleBookView,
   RoleSkills,
   SendBackInput,
   TaskDetail,
@@ -71,6 +72,10 @@ export const api = {
   lineRetry: (id: string, instruction?: string) => request<void>(`/tasks/${id}/line/retry`, post({ instruction })),
   lineSkip: (id: string) => request<void>(`/tasks/${id}/line/skip`, post()),
   lineSettings: (id: string, patch: Partial<LineSettings>) => request<void>(`/tasks/${id}/line/settings`, { method: 'PATCH', body: JSON.stringify(patch) }),
+
+  rules: () => request<RuleBookView[]>('/rules'),
+  applyRule: (id: string) => request<{ ruleId: string }>(`/rules/proposals/${id}/apply`, post()),
+  dismissRule: (id: string) => request<void>(`/rules/proposals/${id}/dismiss`, post()),
 
   botStatus: () => request<BotStatus>('/bot/status'),
   botMessages: () => request<BotMessageView[]>('/bot/messages'),

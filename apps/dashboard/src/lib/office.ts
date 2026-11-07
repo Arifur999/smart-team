@@ -137,6 +137,22 @@ const STAGE_ROOMS: Record<string, RoomId> = {
   'storyboard-check': 'meeting',
   critique: 'meeting',
   'final-qa': 'approval',
+  // Dev, design and marketing lines.
+  reference: 'lab',
+  research: 'lab',
+  strategy: 'command',
+  concept: 'command',
+  backend: 'workspace',
+  frontend: 'workspace',
+  integrate: 'server',
+  visuals: 'workspace',
+  design: 'workspace',
+  copy: 'workspace',
+  content: 'workspace',
+  'seo-ads': 'workspace',
+  'test-review': 'meeting',
+  'design-qa': 'meeting',
+  'marketing-qa': 'meeting',
 };
 
 export function officeMembers(teamId: TeamId, tasks: TaskSummary[]): OfficeMember[] {

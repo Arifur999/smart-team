@@ -383,3 +383,32 @@ model BotMessage {
   @@index([createdAt])
   @@map("bot_messages")
 }
+enum RuleProposalStatus {
+  PROPOSED
+  APPLIED
+  DISMISSED
+}
+
+/// A house rule Nick Fury (Rule keeper) proposed from your send-back notes; you apply or dismiss it.
+model RuleProposal {
+  id        String             @id @default(uuid(7)) @db.Uuid
+  team      String
+  /// The task whose notes it came from.
+  taskId    String?            @db.Uuid
+  title     String
+  /// Stage keys, comma separated, or "all".
+  applies   String
+  rule      String
+  why       String
+  check     String?
+  /// Your note the rule was made from.
+  source    String
+  status    RuleProposalStatus @default(PROPOSED)
+  /// The rule id it got when applied, e.g. R-ED-011.
+  ruleId    String?
+  createdAt DateTime           @default(now()) @db.Timestamptz(3)
+  decidedAt DateTime?          @db.Timestamptz(3)
+
+  @@index([status, createdAt])
+  @@map("rule_proposals")
+}

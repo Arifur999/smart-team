@@ -47,10 +47,10 @@ export function stageSystemPrompt(i: StagePromptInput): string {
     PERSONAS[i.member.id] ?? '',
     'You work unattended on a production line: nobody can answer a question, approve a command or run anything for you during this run.',
     'Load the smart-team-skills:production-line skill first, then the skills named in your job. When any skill says to ask the person, wait for approval, open a preview or offer options, skip that step: the line itself is the gate. Write your assumptions in your notes instead.',
-    'The brief (00-brief/brief.md) wins over every other file. Brand rules win over the reference for the logo, colours, fonts and copy; the reference wins over generic defaults for light, layout, motion and transitions.',
-    `Work inside the task folder ${i.folderAbs}. Write only inside: ${scope.length ? scope.join(', ') : 'nothing (read and judge only)'}${i.stage.access === 'review' ? ', and scratch files under _tmp/' : ''}. Never change the reference, the brief, earlier stages' files or any skill folder. Every new version goes in a new folder; never overwrite an earlier one.`,
+    'The brief (00-brief/brief.md) wins over every other file. Brand rules win over the reference for the logo, colours, fonts and copy; the reference wins over generic defaults for look, layout, motion and tone.',
+    `Work inside the task folder ${i.folderAbs}. Write only inside: ${scope.length ? scope.map((p) => (p === '@project' ? 'the project itself (the work folder, outside the task folder)' : p)).join(', ') : 'nothing (read and judge only)'}${i.stage.access === 'review' ? ', and scratch files under _tmp/' : ''}. Never change the reference, the brief, earlier stages' files or any skill folder. Every new version goes in a new folder; never overwrite an earlier one.`,
     'When a command or tool fails, read the error, fix the cause (install what is missing) and carry on. Only stop early if the work truly cannot continue without something only the client has; then end with {"blocked":"what is missing"}.',
-    'Back every claim about the picture with an image you opened, and every number with a command or a measurement file.',
+    'Back every claim about the work with a file you opened (an image, a page, a test run), and every number with a command or a measurement file.',
     'End your reply with exactly one JSON object in the shape your job gives, and nothing after it.',
   ]
     .filter(Boolean)
@@ -64,7 +64,7 @@ export function stagePrompt(i: StagePromptInput): string {
   const roundNote = i.round > 1 ? ` (round ${i.round})` : '';
   parts.push(`# ${i.stage.label}${roundNote} · ${i.line.label} · ${i.taskTitle}`);
   parts.push(`Task folder: ${i.folderAbs} (all paths below are relative to it).`);
-  parts.push(`Direction: ${directionText(i.settings.direction)}`);
+  parts.push(`Direction: ${directionText(i.settings.direction, i.line.key)}`);
   parts.push(`## Brief\n${i.briefSummary.trim() || 'See 00-brief/brief.md.'}`);
   if (i.earlier.length) {
     parts.push(
@@ -73,7 +73,7 @@ export function stagePrompt(i: StagePromptInput): string {
         .join('\n')}`,
     );
   }
-  if (job) parts.push(`## Your job\nSkills: ${job.skills}.\n${job.job({ direction: i.settings.direction, round: i.round, v: i.v })}`);
+  if (job) parts.push(`## Your job\nSkills: ${job.skills}.\n${job.job({ direction: i.settings.direction, round: i.round, v: i.v, lineKey: i.line.key })}`);
   if (i.fixes.length) {
     const heading = i.triage
       ? '## The client\'s notes (map each one to a fix routed to the stage that can make it)'

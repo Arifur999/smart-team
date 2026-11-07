@@ -25,6 +25,12 @@ export function skipFlags(answers: Record<string, string | undefined>): SkipWhen
   const ratios = new Set(formats.match(/\b\d{1,2}\s*[:x×]\s*\d{1,2}\b/g)?.map((r) => r.replace(/\s|×/g, '').replace('x', ':')) ?? []);
   const named = ['vertical', 'square', 'landscape', 'portrait', 'reel', 'story', 'shorts', 'youtube'].filter((w) => formats.includes(w));
   if (formats.trim() && ratios.size + (ratios.size ? 0 : named.length) <= 1) flags.push('single-format');
+  // Marketing: no social platform named, or no search engine / ads.
+  const platforms = (answers.platforms ?? '').toLowerCase();
+  if (platforms.trim()) {
+    if (!/facebook|instagram|tiktok|linkedin|twitter|\bx\b|youtube|threads|pinterest|social/.test(platforms)) flags.push('no-social');
+    if (!/google|seo|search|ads?\b|bing|youtube/.test(platforms)) flags.push('no-search');
+  }
   return flags;
 }
 

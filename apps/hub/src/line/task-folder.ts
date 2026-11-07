@@ -7,7 +7,7 @@ const MAX_SLUG = 32;
  * slug of the title (a Bangla-only title becomes "task") and the end of the id so two tasks never share one.
  * Kept short because video projects nest deep and Windows paths have a length limit.
  */
-export function taskFolderName(title: string, id: string, createdAt: Date): string {
+export function taskFolderName(title: string, id: string, createdAt: Date, root?: string): string {
   const date = createdAt.toISOString().slice(0, 10).replace(/-/g, '');
   let slug = title
     .normalize('NFKD')
@@ -18,7 +18,8 @@ export function taskFolderName(title: string, id: string, createdAt: Date): stri
     .slice(0, MAX_SLUG)
     .replace(/-+$/, '');
   if (!slug || RESERVED.test(slug)) slug = 'task';
-  return `${date}-${slug}-${id.replace(/-/g, '').slice(-4)}`;
+  const name = `${date}-${slug}-${id.replace(/-/g, '').slice(-4)}`;
+  return root ? `${root.replace(/[\\/]+$/, '')}/${name}` : name;
 }
 
 /** Joins the task folder onto the work folder with the PC's own separator. */

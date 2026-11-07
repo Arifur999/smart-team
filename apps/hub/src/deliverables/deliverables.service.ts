@@ -2,6 +2,7 @@ import { existsSync, rmSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
+  lineByKey,
   matchGlob,
   normalizeTaskPath,
   type DeliverableSpec,
@@ -126,19 +127,25 @@ export class DeliverablesService {
         select: { stage: true, kind: true, status: true, ownerId: true, round: true, score: true, result: true, finishedAt: true },
       }),
     ]);
+    const task = await this.prisma.task.findUnique({ where: { id: taskId }, select: { line: true } });
+    const line = lineByKey(task?.line);
+    // The first work stage reads the references; a stage that makes stills before the versions is kept apart.
+    const refStage = line?.stages.find((s) => s.kind === 'work')?.key ?? 'source';
+    const stillsStage = line?.key === 'nextEditor.video' ? 'storyboard' : null;
+    const versionStage = line?.versionStage ?? 'animate';
     const views = rows.map(toView);
     const versions = new Map<number, VersionView>();
     const ensure = (n: number) => versions.get(n) ?? versions.set(n, { n, files: [], verdicts: [] }).get(n)!;
 
     for (const d of views) {
-      if (d.stage === 'source' || d.stage === 'storyboard') continue;
+      if (d.stage === refStage || d.stage === stillsStage) continue;
       const n = versionOf(d.path);
       if (n !== null) ensure(n).files.push(d);
     }
     // A gate judged the render version that existed when it ran: count the animate rounds before it.
     let v = 0;
     for (const s of steps) {
-      if (s.stage === 'animate' && s.status !== 'SKIPPED') v++;
+      if (s.stage === versionStage && s.status !== 'SKIPPED') v++;
       if (s.kind !== 'GATE' || !s.result || s.stage === 'storyboard-check' || v === 0) continue;
       const verdict = s.result as unknown as Verdict;
       ensure(v).verdicts.push({
@@ -156,8 +163,8 @@ export class DeliverablesService {
     return {
       taskId,
       versions: [...versions.values()].sort((a, b) => a.n - b.n),
-      references: views.filter((d) => d.stage === 'source'),
-      styleFrames: views.filter((d) => d.stage === 'storyboard').reverse(),
+      references: views.filter((d) => d.stage === refStage),
+      styleFrames: views.filter((d) => d.stage === stillsStage).reverse(),
     };
   }
 }
