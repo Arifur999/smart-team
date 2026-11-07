@@ -123,6 +123,16 @@ export interface StageDef {
   rerunAfter?: string[];
   /** Fix rounds continue this stage's own last session instead of starting fresh. */
   resumeOnFix?: true;
+  /**
+   * The main gate's fixes for this stage go to that later work stage instead, which can make them in the
+   * same pass (the animator fixes a still's look in the build it animates anyway). Its own check still routes here.
+   */
+  fixInto?: string;
+  /**
+   * Redone only because an earlier stage changed and with no fixes of its own: the stage runs its short
+   * "quick" job (for sound: lay the existing mix on the new picture) with these limits.
+   */
+  quickRerun?: { model?: string; maxTurns?: number; timeoutMinutes?: number };
   gate?: GateDef;
   maxTurns?: number;
   timeoutMinutes?: number;
@@ -209,6 +219,7 @@ export const LINES: LineDef[] = [
         ],
         rerunAfter: ['plan'],
         resumeOnFix: true,
+        fixInto: 'animate',
         timeoutMinutes: 120,
       },
       {
@@ -231,6 +242,8 @@ export const LINES: LineDef[] = [
         access: 'write',
         dir: '04-renders/v{round}',
         writes: ['build'],
+        // pair_sheet.py, for matching snapshots against the reference before the render.
+        skills: ['skill:storyboard-keyframes'],
         requiredFiles: ['04-renders/v{round}/film.mp4'],
         deliverables: [
           { glob: '04-renders/v{round}/film.mp4', label: 'Render' },
@@ -253,6 +266,7 @@ export const LINES: LineDef[] = [
         skippable: { label: 'skip Sound', when: 'no-sound' },
         rerunAfter: ['animate'],
         resumeOnFix: true,
+        quickRerun: { model: 'sonnet', maxTurns: 40, timeoutMinutes: 20 },
         timeoutMinutes: 90,
       },
       {
@@ -383,6 +397,9 @@ export function validateLine(line: LineDef): string[] {
         const t = line.stages[index(target)];
         if (!t || t.kind !== 'work' || index(target) >= index(stage.key)) problems.push(`${stage.key}: fix target ${target} must be an earlier work stage`);
       }
+    }
+    if (stage.fixInto && (index(stage.fixInto) <= index(stage.key) || line.stages[index(stage.fixInto)]?.kind !== 'work')) {
+      problems.push(`${stage.key}: fixInto ${stage.fixInto} must be a later work stage`);
     }
     for (const after of stage.rerunAfter ?? []) {
       if (index(after) < 0 || index(after) >= index(stage.key)) problems.push(`${stage.key}: rerunAfter ${after} must be an earlier stage`);

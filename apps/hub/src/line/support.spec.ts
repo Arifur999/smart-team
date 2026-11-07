@@ -110,5 +110,14 @@ describe('stage prompts', () => {
     for (const part of ['# Animate & render (round 2)', 'A 15 s motion video', 'Read source (Wolverine): 12 beats', '04-renders/v2/film.mp4', 'F3 [P0] (at 4.1s): Cut through black', 'R-ED-005 No black cuts', '"stage":"animate"']) {
       expect(prompt).toContain(part);
     }
+    // The animator matches frame by frame against the reference before the one full render.
+    expect(prompt).toContain('pair_sheet.py --stills 04-renders/v2/match/stills');
+  });
+
+  it('gives sound its short re-lay job when it is redone only because the picture changed', () => {
+    const sound = stageOf(line, 'sound')!;
+    const quick = stagePrompt({ ...input, stage: sound, fixes: [], quick: true });
+    expect(quick).toContain('lay the existing mix on the new render v2');
+    expect(stagePrompt({ ...input, stage: sound, fixes: [] })).toContain('Score the picture');
   });
 });

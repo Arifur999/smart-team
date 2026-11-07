@@ -439,7 +439,7 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
         brief: { select: { summary: true, answers: true } },
         steps: {
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-          select: { id: true, stage: true, status: true, round: true, reason: true, route: true, causedById: true, decidedBy: true, finishedAt: true, ownerId: true, summary: true, result: true, notes: true, kind: true },
+          select: { id: true, stage: true, status: true, round: true, reason: true, route: true, causedById: true, decidedBy: true, finishedAt: true, ownerId: true, summary: true, result: true, notes: true, kind: true, score: true },
         },
       },
     });
@@ -566,6 +566,8 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
     });
     const resumeSessionId = lineResumeSession({ reason: step.reason, stage, retryOf: opts.retryOf, history, deviceId: ctx.task.deviceId });
 
+    // Redone only because an earlier stage changed, with no fixes of its own: the short job on a lighter model.
+    const quick = step.reason === 'fix' && step.notes.length === 0 ? stage.quickRerun : undefined;
     const cause = step.causedById ? ctx.steps.find((s) => s.id === step.causedById) : undefined;
     const previousVerdict = step.reason === 'recheck' && cause?.result ? (cause.result as Verdict) : null;
     const promptInput = {
@@ -585,6 +587,7 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
       rules: this.houseRules(ctx, stage.key),
       requiredFiles: (stage.requiredFiles ?? []).map((f) => fillStagePath(f, vars)),
       triage: step.reason === 'triage',
+      quick: Boolean(quick),
     };
     // A resumed session already has the brief and its job; it only needs what happened since.
     const prompt =
@@ -606,9 +609,9 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
       requiredFiles: promptInput.requiredFiles,
       deliverables: (stage.deliverables ?? []).map((d) => ({ ...d, glob: fillStagePath(d.glob, vars) })),
       ...(stage.saveReply ? { saveReplyTo: fillStagePath(stage.saveReply, vars) } : {}),
-      ...(stage.maxTurns ? { maxTurns: stage.maxTurns } : {}),
-      ...(stage.timeoutMinutes ? { timeoutMinutes: stage.timeoutMinutes } : {}),
-      ...(stage.model ? { model: stage.model } : {}),
+      ...((quick?.maxTurns ?? stage.maxTurns) ? { maxTurns: quick?.maxTurns ?? stage.maxTurns } : {}),
+      ...((quick?.timeoutMinutes ?? stage.timeoutMinutes) ? { timeoutMinutes: quick?.timeoutMinutes ?? stage.timeoutMinutes } : {}),
+      ...((quick?.model ?? stage.model) ? { model: quick?.model ?? stage.model } : {}),
       skillKeys: [...memberSkillKeys(member.id), ...(stage.skills ?? []), ...this.brandKits(ctx).map((k) => `skill:${k}`)],
     };
 

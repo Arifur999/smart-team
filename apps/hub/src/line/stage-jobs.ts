@@ -71,15 +71,21 @@ const VIDEO_STAGE_JOBS: Record<string, StageJob> = {
     reply: '{"stage":"storyboard-check","pass":true,"summary":"…","dimensions":{"light":N,"type":N,"brand":N,"safe":N},"fixes":[{"id":"S1","severity":"P0|P1|P2","stage":"storyboard","scene":"F04","problem":"…","fix":"…","evidence":"path"}]}',
   },
   'nextEditor.video/animate': {
-    skills: 'hyperframes, hyperframes-cli, motion-light-recipes, hyperframes-registry, media-use',
+    skills: 'hyperframes, hyperframes-cli, motion-light-recipes, hyperframes-registry, media-use, storyboard-keyframes (pair_sheet.py)',
     job: ({ round }) =>
       [
         'Animate the approved style frames to 02-plan/beat-plan.json: each beat within 2 frames, the planned transitions, eases by role, titles dead still once landed and the light kept moving during holds. At every poster time the frame must look like its approved still.',
+        'Some fixes may be about the look of a still (light, type, layout): make them in build/ as part of this pass.',
+        `Match frame by frame before you render, because a snapshot takes seconds and a render takes minutes:`,
+        `1. Snapshot the build every 0.5 s and at every beat start, poster and end time in one run into 04-renders/v${round}/match/stills (names carry the time, e.g. T013_t6.50.png, as in storyboard-keyframes).`,
+        `2. Run pair_sheet.py --stills 04-renders/v${round}/match/stills --ref 01-source/ref.mp4 --beat-plan 02-plan/beat-plan.json --out 04-renders/v${round}/match, then open sheet.png and every pair that differs.`,
+        '3. For each pair that does not match the reference (light shape and softness, what is lit and what is black, title size, weight and position, logo), change build/ and snapshot only those times again.',
+        `4. Repeat until every pair matches or 4 passes are done. Write 04-renders/v${round}/match/notes.md: each time that still differs and why.`,
         'npx hyperframes check --json must show zero errors. If you move a beat, move its sound cues with it.',
-        `Render the master to 04-renders/v${round}/film.mp4 (H.264, yuv420p, AAC if there is sound, +faststart) and a poster frame to 04-renders/v${round}/poster.jpg. Confirm the duration with ffprobe and compare the poster-time frames from the file with the stills.`,
+        `Only then render the master once to 04-renders/v${round}/film.mp4 (H.264, yuv420p, AAC if there is sound, +faststart) and a poster frame to 04-renders/v${round}/poster.jpg. Confirm the duration with ffprobe and spot-check 3 frames from the file against their match pairs.`,
         'Write build-notes.md next to the render: for each fix id, what changed (file and selector).',
       ].join('\n'),
-    reply: '{"stage":"animate","summary":"…","file":"04-renders/vN/film.mp4","duration":seconds,"check_errors":0,"fixes":[{"id":"…","status":"done|partly|not done","what":"…"}]}',
+    reply: '{"stage":"animate","summary":"…","file":"04-renders/vN/film.mp4","duration":seconds,"check_errors":0,"match_passes":N,"pairs_differing":N,"fixes":[{"id":"…","status":"done|partly|not done","what":"…"}]}',
   },
   'nextEditor.video/sound': {
     skills: 'media-use, hyperframes (sound), video-production (audio engineering)',
@@ -90,6 +96,17 @@ const VIDEO_STAGE_JOBS: Record<string, StageJob> = {
         'Measure the delivered file: -14 LUFS ±1, true peak at most -1.0 dBTP, stereo 48 kHz.',
       ].join('\n'),
     reply: '{"stage":"sound","summary":"…","lufs":N,"true_peak":N,"cues":N,"fixes":[{"id":"…","status":"done|partly|not done","what":"…"}]}',
+  },
+  'nextEditor.video/sound:quick': {
+    skills: 'media-use (mixing), video-production (audio engineering)',
+    job: ({ v }) =>
+      [
+        `The picture changed but the sound did not need to: lay the existing mix on the new render v${v}. Do not re-score or look for new music.`,
+        `Take the mix from the latest earlier version: its mix file in 05-sound/, or the audio track of the latest earlier 04-renders/v*/film.mp4 that has sound (ffmpeg -map 0:a -c copy).`,
+        'If 02-plan/beat-plan.json moved a beat since that version, shift only the cues on that beat by the same amount.',
+        `Keep the silent picture as 04-renders/v${v}/film-picture.mp4, write the mixed film to 04-renders/v${v}/film.mp4 (video stream copied, not re-encoded), copy licences.md into 05-sound/v${v}/, and measure the delivered file: -14 LUFS ±1, true peak at most -1.0 dBTP.`,
+      ].join('\n'),
+    reply: '{"stage":"sound","summary":"…","lufs":N,"true_peak":N,"reused_from":"vN"}',
   },
   'nextEditor.video/critique': {
     skills: 'video-qa, reference-match, motion-light-recipes, hyperframes-cli, video-production (qc_report.py), and the client brand kit',

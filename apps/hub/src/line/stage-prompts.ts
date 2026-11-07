@@ -29,6 +29,8 @@ export interface StagePromptInput {
   rules: HouseRule[];
   requiredFiles: string[];
   triage: boolean;
+  /** Redone only because an earlier stage changed: the stage's short "quick" job, when it has one. */
+  quick?: boolean;
 }
 
 /** Paths the stage may write, relative to the task folder. */
@@ -59,7 +61,7 @@ export function stageSystemPrompt(i: StagePromptInput): string {
 
 /** The instruction for this stage: the brief, what came before, the job, the fixes and the rules. */
 export function stagePrompt(i: StagePromptInput): string {
-  const job = STAGE_JOBS[`${i.line.key}/${i.stage.key}`];
+  const job = (i.quick ? STAGE_JOBS[`${i.line.key}/${i.stage.key}:quick`] : undefined) ?? STAGE_JOBS[`${i.line.key}/${i.stage.key}`];
   const parts: string[] = [];
   const roundNote = i.round > 1 ? ` (round ${i.round})` : '';
   parts.push(`# ${i.stage.label}${roundNote} · ${i.line.label} · ${i.taskTitle}`);
@@ -83,7 +85,12 @@ export function stagePrompt(i: StagePromptInput): string {
   if (i.previousVerdict) {
     const prev = i.previousVerdict;
     parts.push(
-      `## Your previous verdict\nScore ${prev.score ?? '?'}, ${prev.pass ? 'passed' : 'failed'}. ${prev.summary}\nIts fixes: ${prev.fixes.map((f) => `${f.id} (${f.stage}) ${f.problem}`).join('; ') || 'none'}\nReport each of them as fixed, partly, not fixed or regressed.`,
+      [
+        `## Your previous verdict\nScore ${prev.score ?? '?'}, ${prev.pass ? 'passed' : 'failed'}. ${prev.summary}`,
+        `Its fixes: ${prev.fixes.map((f) => `${f.id} [${f.severity}] (${f.stage}) ${f.problem}`).join('; ') || 'none'}`,
+        "This is a recheck, not a fresh review. Start from your previous pairs and the builder's match sheet, re-measure, and report each previous fix as fixed, partly, not fixed or regressed, with the frame that shows it.",
+        'Hold the same bar as before; do not raise it. A new problem is P0 only when it would stop the client using the film (cut-off text, wrong copy, a broken logo, black or frozen frames, a regression). Every other new finding is P2 polish.',
+      ].join('\n'),
     );
   }
   if (i.rules.length) parts.push(`## House rules (follow them; a rule with a check is a must-pass item)\n${formatRules(i.rules)}`);

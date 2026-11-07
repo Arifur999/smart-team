@@ -27,6 +27,8 @@ export interface StepLite {
   route: Route | null;
   causedById: string | null;
   decidedBy: string | null;
+  /** A gate's score, when it gave one. */
+  score?: number | null;
 }
 
 /** A stage to enter next. */
@@ -114,6 +116,37 @@ export function nextAfterDone(step: StepLite, steps: StepLite[], line: LineDef):
   }
   const next = lineNext(line, step.stage);
   return next ? { stage: next, reason: 'line', notes: [], causedById: null } : null;
+}
+
+/**
+ * The fixes that decide where work goes back to. P0 and P1 fixes redo their stage; P2 polish only rides along
+ * as a note on a stage that is redone anyway, so one small note never re-runs the whole line. A plan fix
+ * restarts everything after the plan, so it only routes when it is P0.
+ */
+export function routingFixes(fixes: FixNote[]): FixNote[] {
+  const weighty = fixes.filter((f) => f.severity !== 'P2' && (f.stage !== 'plan' || f.severity === 'P0'));
+  return weighty.length > 0 ? weighty : fixes.filter((f) => f.stage !== 'plan');
+}
+
+/** The main gate's fixes for a stage with fixInto, handed to that later stage (when it comes before the gate). */
+export function moveFixes(line: LineDef, fixes: FixNote[], gateKey: string): FixNote[] {
+  return fixes.map((f) => {
+    const into = line.stages[stageIndex(line, f.stage)]?.fixInto;
+    return into && stageIndex(line, into) < stageIndex(line, gateKey) ? { ...f, stage: into } : f;
+  });
+}
+
+/** Points a fix round must add to the main gate's score to be worth another round. */
+export const MIN_GAIN = 3;
+
+/** The score of this gate's last send-back since your last decision, or null when there was none. */
+export function lastSentBackScore(gateKey: string, steps: StepLite[]): number | null {
+  let lastYou = -1;
+  steps.forEach((s, i) => {
+    if (s.decidedBy === YOU) lastYou = i;
+  });
+  const last = steps.slice(lastYou + 1).filter((s) => s.stage === gateKey && s.status === 'SENT_BACK' && s.reason !== 'triage').at(-1);
+  return typeof last?.score === 'number' ? last.score : null;
 }
 
 /** First entry of a detour a step just sent back. */
@@ -208,8 +241,15 @@ export function decideAfterRun(c: DecideContext, end: RunEnd): Decision {
   if (verdict.pass && !triage) return { kind: 'pass', verdict };
 
   const isSkipped = (s: StageDef) => skipReason(s, c.settings, c.flags) !== null;
-  const fixes = verdict.fixes.filter((f) => gate.fixTargets.includes(f.stage));
-  const routeFor = () => buildDetour(c.line, fixes, rejoinFor(c.line, fixes.map((f) => f.stage), c.stage.key), isSkipped);
+  const fixes = (gate.main ? moveFixes(c.line, verdict.fixes, c.stage.key) : verdict.fixes).filter((f) => gate.fixTargets.includes(f.stage));
+  const routeFor = () => {
+    const routing = routingFixes(fixes);
+    const route = buildDetour(c.line, routing, rejoinFor(c.line, routing.map((f) => f.stage), c.stage.key), isSkipped);
+    if (!route) return null;
+    // Polish for a stage that is redone anyway goes along as a note.
+    for (const f of fixes) if (!routing.includes(f) && route.stages.includes(f.stage)) (route.notes[f.stage] ??= []).push(f);
+    return route;
+  };
 
   if (triage) {
     const route = fixes.length > 0 ? routeFor() : null;
@@ -221,6 +261,10 @@ export function decideAfterRun(c: DecideContext, end: RunEnd): Decision {
   const budget = gate.main ? c.settings.maxFixes : (gate.maxFixes ?? 0);
   const used = fixesUsed(c.stage.key, c.steps);
   if (used >= budget) return { kind: 'continue', verdict, reason: `${c.stage.label} sent it back ${used} times already; going on with known issues.` };
+  const before = gate.main ? lastSentBackScore(c.stage.key, c.steps) : null;
+  if (before !== null && verdict.score !== null && verdict.score < before + MIN_GAIN) {
+    return { kind: 'continue', verdict, reason: `The score stalled (${before} → ${verdict.score}), so another fix round would not pay off; going on to your review with known issues.` };
+  }
   const route = fixes.length > 0 ? routeFor() : null;
   if (route) return { kind: 'fix', verdict, route };
   if (tries < 2) return { kind: 'retry', resume: end.hasSession, note: 'Your verdict failed but gave no fixes. Add the fixes (stage, problem, exact change) and reply with the verdict JSON.' };

@@ -153,7 +153,45 @@ describe('decideAfterRun', () => {
   it('passes a good verdict and sends a weak one back with a detour', () => {
     expect(decideAfterRun(ctxFor('critique'), end({ outcome: JSON.stringify({ dimensions: dims(9) }) })).kind).toBe('pass');
     const weak = decideAfterRun(ctxFor('critique'), end({ outcome: JSON.stringify({ dimensions: dims(5), fixes: [{ severity: 'P0', stage: 'storyboard', problem: 'flat beams' }] }) }));
-    expect(weak).toMatchObject({ kind: 'fix', route: { stages: ['storyboard', 'animate', 'sound'], rejoin: 'critique' } });
+    // The animator makes a still's look fix in the build it animates anyway, so the style frames are not redone.
+    expect(weak).toMatchObject({ kind: 'fix', route: { stages: ['animate', 'sound'], rejoin: 'critique' } });
+  });
+
+  it('routes only P0 and P1 fixes; polish rides along and a small plan note never restarts the line', () => {
+    const out = decideAfterRun(
+      ctxFor('critique'),
+      end({
+        outcome: JSON.stringify({
+          dimensions: dims(5),
+          fixes: [
+            { id: 'F1', severity: 'P0', stage: 'animate', problem: 'title lit before the beam' },
+            { id: 'F2', severity: 'P2', stage: 'plan', problem: 'tighten a window' },
+            { id: 'F3', severity: 'P2', stage: 'animate', problem: 'ease a little softer' },
+          ],
+        }),
+      }),
+    );
+    expect(out).toMatchObject({ kind: 'fix', route: { stages: ['animate', 'sound'] } });
+    if (out.kind === 'fix') expect(out.route.notes.animate?.map((f) => f.id)).toEqual(['F1', 'F3']);
+  });
+
+  it('keeps the style check sending stills back to the style frames', () => {
+    const out = decideAfterRun(
+      ctxFor('storyboard-check'),
+      end({ outcome: JSON.stringify({ pass: false, fixes: [{ severity: 'P0', stage: 'storyboard', problem: 'flat beam' }] }) }),
+    );
+    expect(out).toMatchObject({ kind: 'fix', route: { stages: ['storyboard'] } });
+  });
+
+  it('stops fixing and goes on to your review when a fix round did not raise the score', () => {
+    const verdict = end({ outcome: JSON.stringify({ dimensions: dims(7), fixes: [{ severity: 'P0', stage: 'animate', problem: 'x' }] }) });
+    const decide = (before: number) => {
+      const sent = step({ stage: 'critique', status: 'SENT_BACK', score: before });
+      const current = step({ stage: 'critique', status: 'ACTIVE', reason: 'recheck' });
+      return decideAfterRun(ctxFor('critique', { step: current, steps: [sent, current] }), verdict);
+    };
+    expect(decide(69)).toMatchObject({ kind: 'continue' });
+    expect(decide(55).kind).toBe('fix');
   });
 
   it('goes on with known issues once the fix budget is spent', () => {

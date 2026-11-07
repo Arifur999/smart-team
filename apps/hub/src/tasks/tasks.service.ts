@@ -28,6 +28,7 @@ import { getEnv } from '../env.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { lineActions, lineSummaryOf, lineTaskStatus, type StepRow } from '../line/line-status.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { pickNextRun } from './queue-order.js';
 
 const NEWEST_FIRST = [{ createdAt: 'desc' }, { id: 'desc' }] as const satisfies Prisma.RunOrderByWithRelationInput[];
 
@@ -280,6 +281,19 @@ export class TasksService {
     return run;
   }
 
+  /** Id of the queued run whose task waited longest since its last run ended. */
+  private async nextIdByTurns(where: Prisma.RunWhereInput): Promise<string | null> {
+    const queued = await this.prisma.run.findMany({ where, select: { id: true, taskId: true, task: { select: { createdAt: true } } }, orderBy: OLDEST_FIRST, take: 50 });
+    if (queued.length === 0) return null;
+    const ended = await this.prisma.run.groupBy({
+      by: ['taskId'],
+      where: { taskId: { in: [...new Set(queued.map((r) => r.taskId))] }, finishedAt: { not: null } },
+      _max: { finishedAt: true },
+    });
+    const lastEnded = new Map(ended.flatMap((e) => (e._max.finishedAt ? [[e.taskId, e._max.finishedAt] as const] : [])));
+    return pickNextRun(queued.map((r) => ({ id: r.id, taskId: r.taskId, taskCreatedAt: r.task.createdAt })), lastEnded)?.id ?? null;
+  }
+
   /**
    * Moves the device's oldest queued run to RUNNING, unless the device is already running one.
    * The conditional update makes a second concurrent claim of the same run a no-op.
@@ -288,7 +302,7 @@ export class TasksService {
     const busy = await this.prisma.run.count({ where: { deviceId, status: 'RUNNING' } });
     if (busy > 0) return null;
 
-    // Brief checks go first (you are waiting in the chat); then the oldest task, so one video's stages stay together.
+    // Brief checks go first (you are waiting in the chat); then tasks take turns (see pickNextRun).
     const select = {
       id: true,
       taskId: true,
@@ -305,7 +319,7 @@ export class TasksService {
     const ready = { deviceId, status: 'QUEUED', OR: [{ task: { resumeAt: null } }, { task: { resumeAt: { lte: now } } }] } satisfies Prisma.RunWhereInput;
     const next =
       (await this.prisma.run.findFirst({ where: { ...ready, mode: 'INTAKE' }, select, orderBy: OLDEST_FIRST })) ??
-      (await this.prisma.run.findFirst({ where: ready, select, orderBy: [{ task: { createdAt: 'asc' } }, ...OLDEST_FIRST] }));
+      (await this.nextIdByTurns(ready).then((id) => (id ? this.prisma.run.findUnique({ where: { id }, select }) : null)));
     if (!next) return null;
 
     const { count } = await this.prisma.run.updateMany({
