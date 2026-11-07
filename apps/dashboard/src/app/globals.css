@@ -25,6 +25,19 @@
   --term-ok: #6ee7a0;
   --term-danger: #ff8a8a;
   --term-warn: #f5c76a;
+  /* The Production Line board and the Review Booth stay dark in both themes, like a screening room. */
+  --prod-bg: #0d0b17;
+  --prod-lane: #120f20;
+  --prod-edge: #2a2547;
+  --prod-fg: #e9e6f7;
+  --prod-muted: #9b95b8;
+  --prod-glow: #a78bfa;
+  --prod-glow-strong: #c4b5fd;
+  --prod-done: #6d4fd8;
+  --prod-you: #fbbf24;
+  --prod-skip: #fb923c;
+  --prod-loop: #fb7185;
+  --prod-stuck: #f87171;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -72,6 +85,18 @@
   --color-term-warn: var(--term-warn);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-prod-bg: var(--prod-bg);
+  --color-prod-lane: var(--prod-lane);
+  --color-prod-edge: var(--prod-edge);
+  --color-prod-fg: var(--prod-fg);
+  --color-prod-muted: var(--prod-muted);
+  --color-prod-glow: var(--prod-glow);
+  --color-prod-glow-strong: var(--prod-glow-strong);
+  --color-prod-done: var(--prod-done);
+  --color-prod-you: var(--prod-you);
+  --color-prod-skip: var(--prod-skip);
+  --color-prod-loop: var(--prod-loop);
+  --color-prod-stuck: var(--prod-stuck);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -85,6 +110,11 @@
 @keyframes led { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
 @keyframes lamp { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
 @keyframes bubble-in { from { opacity: 0; transform: translateY(3px) scale(0.92); } to { opacity: 1; transform: none; } }
+/* Production Line: a working stage pulses, and the line into it marches. */
+@keyframes prod-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--pulse, var(--prod-glow)) 55%, transparent); } 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--pulse, var(--prod-glow)) 0%, transparent); } }
+@keyframes prod-march { to { stroke-dashoffset: -16; } }
+.prod-pulse { animation: prod-pulse 1.8s ease-in-out infinite; }
+.prod-march { stroke-dasharray: 6 4; animation: prod-march 0.8s linear infinite; }
 
 .pose-walk .px-leg-l { animation: px-step 0.36s steps(1) infinite; }
 .pose-walk .px-leg-r { animation: px-step 0.36s steps(1) infinite 0.18s; }

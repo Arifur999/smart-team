@@ -214,6 +214,30 @@ export interface LineStepView {
   runs: LineStepRunView[];
 }
 
+/** How a line's stages have gone lately, for the board's metric rows. */
+export interface StageStats {
+  key: string;
+  /** Mean time a task spends in this stage (all its rounds); null without data. */
+  avgSeconds: number | null;
+  /** Tasks that went through it. */
+  tasks: number;
+  /** Times its work was sent back to be redone. */
+  sentBack: number;
+}
+
+/** One production line for the board: its tasks still on the line and its recent stats. */
+export interface LineView {
+  key: string;
+  label: string;
+  team: TeamId;
+  noun: { one: string; many: string };
+  /** Tasks still on the line (not done or cancelled), oldest first. */
+  tasks: TaskSummary[];
+  stats: StageStats[];
+  /** Tasks the stats are based on (the last 30 days). */
+  statsTasks: number;
+}
+
 /** A file a stage uploaded for the Review Booth. */
 export interface DeliverableView {
   id: string;

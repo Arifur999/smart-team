@@ -8,11 +8,18 @@ import type {
   BotStatus,
   CreateTaskInput,
   IntakeView,
+  LineSettings,
+  LineView,
   RoleSkills,
+  SendBackInput,
   TaskDetail,
   TaskSummary,
+  VersionsView,
 } from '@smart-team/shared';
 import { hubUrl } from './hub';
+
+/** A hub path (e.g. a deliverable's url) as a full URL the browser can load. */
+export const hubFile = (path: string) => new URL(path, hubUrl()).toString();
 
 /** The hub's error message when it sent one, so forms can show it as is. */
 export class ApiError extends Error {}
@@ -56,6 +63,14 @@ export const api = {
   addPathAsset: (id: string, input: AddPathAssetInput) => request<AssetView>(`/tasks/${id}/intake/assets/path`, post(input)),
   addLinkAsset: (id: string, input: AddLinkAssetInput) => request<AssetView>(`/tasks/${id}/intake/assets/link`, post(input)),
   removeAsset: (id: string, assetId: string) => request<void>(`/tasks/${id}/intake/assets/${assetId}`, { method: 'DELETE' }),
+
+  lines: () => request<LineView[]>('/lines'),
+  versions: (id: string) => request<VersionsView>(`/tasks/${id}/versions`),
+  lineApprove: (id: string, comment?: string) => request<void>(`/tasks/${id}/line/approve`, post({ comment })),
+  lineSendBack: (id: string, input: SendBackInput) => request<void>(`/tasks/${id}/line/send-back`, post(input)),
+  lineRetry: (id: string, instruction?: string) => request<void>(`/tasks/${id}/line/retry`, post({ instruction })),
+  lineSkip: (id: string) => request<void>(`/tasks/${id}/line/skip`, post()),
+  lineSettings: (id: string, patch: Partial<LineSettings>) => request<void>(`/tasks/${id}/line/settings`, { method: 'PATCH', body: JSON.stringify(patch) }),
 
   botStatus: () => request<BotStatus>('/bot/status'),
   botMessages: () => request<BotMessageView[]>('/bot/messages'),

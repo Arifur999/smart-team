@@ -8,7 +8,7 @@ import { AssetsController } from '../intake/assets.controller.js';
 import { AssetsService } from '../intake/assets.service.js';
 import { IntakeController } from '../intake/intake.controller.js';
 import { IntakeService } from '../intake/intake.service.js';
-import { LineController } from '../line/line.controller.js';
+import { LineController, LinesController } from '../line/line.controller.js';
 import { LineService } from '../line/line.service.js';
 import { SkillsModule } from '../skills/skills.module.js';
 import { AgentStatsController } from '../tasks/agent-stats.controller.js';
@@ -34,6 +34,7 @@ import { RunDispatcher } from './run-dispatcher.js';
     AssetsController,
     BotController,
     LineController,
+    LinesController,
     AgentDeliverablesController,
     DeliverablesController,
   ],

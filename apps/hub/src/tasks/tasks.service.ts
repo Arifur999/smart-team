@@ -3,6 +3,8 @@ import {
   defaultLineKey,
   FIRST_AGENT_SEQ,
   lineByKey,
+  LINES,
+  type LineView,
   runAgentId,
   type AgentStats,
   type CreateTaskInput,
@@ -163,6 +165,39 @@ export class TasksService {
   async list(limit = 50): Promise<TaskSummary[]> {
     const tasks = await this.prisma.task.findMany({ select: TASK_SELECT, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: limit });
     return tasks.map((t) => toSummary(t));
+  }
+
+  /** Every production line with its tasks still on it and how its stages went over the last 30 days. */
+  async lines(now = new Date()): Promise<LineView[]> {
+    const since = new Date(now.getTime() - 30 * 24 * 3600_000);
+    const rows = await this.prisma.task.findMany({
+      where: { line: { not: null }, OR: [{ createdAt: { gte: since } }, { steps: { some: { status: { in: ['ACTIVE', 'WAITING'] } } } }] },
+      select: TASK_SELECT,
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 300,
+    });
+    const summaries = rows.map((t) => toSummary(t, now));
+    return LINES.map((line) => {
+      const mine = summaries.filter((s) => s.line?.key === line.key);
+      const started = mine.filter((s) => s.line!.path.some((p) => p.rounds > 0));
+      return {
+        key: line.key,
+        label: line.label,
+        team: line.team,
+        noun: line.noun,
+        tasks: mine.filter((s) => s.line!.state !== 'done' && s.line!.state !== 'cancelled'),
+        statsTasks: started.length,
+        stats: line.stages.map((stage) => {
+          const steps = started.map((s) => s.line!.path.find((p) => p.key === stage.key)!).filter((p) => p.rounds > 0);
+          return {
+            key: stage.key,
+            avgSeconds: steps.length ? Math.round(steps.reduce((sum, p) => sum + p.seconds, 0) / steps.length) : null,
+            tasks: steps.length,
+            sentBack: steps.reduce((sum, p) => sum + p.sentBack, 0),
+          };
+        }),
+      };
+    });
   }
 
   async summary(taskId: string): Promise<TaskSummary> {

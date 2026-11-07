@@ -62,7 +62,7 @@ export function TeamInfo({ team, onAsk }: { team: TeamId; onAsk: (text: string) 
         <ul className="mt-2 space-y-1 border-t border-line pt-2">
           {mine.slice(0, 3).map((t) => (
             <li key={t.id} className="flex items-center gap-2 text-xs">
-              <TaskStatusBadge status={t.status} mode={t.mode} />
+              <TaskStatusBadge status={t.status} mode={t.mode} line={t.line} />
               <Link href={`/tasks/${t.id}`} className="min-w-0 flex-1 truncate hover:underline">
                 {t.title}
               </Link>

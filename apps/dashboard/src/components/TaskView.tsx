@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useTask } from '@/hooks/useTask';
 import { api } from '@/lib/api';
 import { IntakeChat } from './intake/IntakeChat';
+import { LineActionsBar, LineBanner, LineSettingsChips, StageTimeline } from './line/LineTaskPanel';
 import { TaskStatusBadge } from './TaskStatusBadge';
 import { Terminal } from './Terminal';
 
@@ -30,20 +31,26 @@ export function TaskView({ taskId }: { taskId: string }) {
       </Link>
 
       <header className="mt-3 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1 basis-80">
           <h1 className="text-xl font-semibold tracking-tight">{task.title}</h1>
           <p className="mt-1 truncate text-sm text-muted">
             {task.deviceName} · <span className="font-mono">{task.workDir}</span>
             {task.costUsd !== null && <> · last run ${task.costUsd.toFixed(2)}</>}
           </p>
+          <LineSettingsChips task={task} />
         </div>
-        <div className="flex items-center gap-2">
-          <TaskStatusBadge status={task.status} mode={task.mode} />
-          <TaskActions task={task} />
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <TaskStatusBadge status={task.status} mode={task.mode} line={task.line} />
+            <TaskActions task={task} />
+          </div>
+          {task.status !== 'INTAKE' && <LineActionsBar task={task} />}
         </div>
       </header>
 
-      {task.status === 'AWAITING_APPROVAL' && (
+      {task.line && task.status !== 'INTAKE' && <LineBanner task={task} />}
+
+      {task.status === 'AWAITING_APPROVAL' && !task.line && (
         <p className="mt-4 rounded-lg bg-warn-soft px-4 py-3 text-sm text-warn">
           {PLAN_AGENT_NAME} has a plan ready. Read it in the terminal, then approve it, or type what to change to get a new plan.
         </p>
@@ -66,14 +73,17 @@ export function TaskView({ taskId }: { taskId: string }) {
         </>
       ) : (
         // Fixed to the screen height so the terminal scrolls inside itself, like a real one.
-        <div className="mt-4 flex h-[calc(100dvh-13rem)] min-h-[420px] flex-col">
-          <Terminal
-            title={`${task.deviceName} — ${task.workDir}`}
-            lines={task.lines}
-            inputEnabled={task.canFollowUp}
-            inputHint={inputHint(task)}
-            onSend={(text) => api.followUp(task.id, text)}
-          />
+        <div className={`mt-4 grid gap-4 ${task.line && task.steps.length ? 'lg:h-[calc(100dvh-13rem)] lg:min-h-[420px] lg:grid-cols-[minmax(0,1fr)_340px]' : 'h-[calc(100dvh-13rem)] min-h-[420px]'}`}>
+          <div className="flex h-[calc(100dvh-13rem)] min-h-[420px] min-w-0 flex-col lg:h-auto">
+            <Terminal
+              title={`${task.deviceName} — ${task.workDir}`}
+              lines={task.lines}
+              inputEnabled={task.canFollowUp}
+              inputHint={inputHint(task)}
+              onSend={(text) => api.followUp(task.id, text)}
+            />
+          </div>
+          <StageTimeline task={task} />
         </div>
       )}
     </main>
@@ -101,7 +111,7 @@ function TaskActions({ task }: { task: TaskDetail }) {
   return (
     <>
       {error && <span className="text-xs text-danger">{error}</span>}
-      {task.canApprove && (
+      {task.canApprove && !task.line && (
         <button
           disabled={busy}
           onClick={() => act(() => api.approve(task.id))}

@@ -54,7 +54,7 @@ export function TasksBoard() {
                     {task.team} · {task.deviceName} · <span className="font-mono">{task.workDir}</span>
                   </div>
                 </div>
-                <TaskStatusBadge status={task.status} mode={task.mode} />
+                <TaskStatusBadge status={task.status} mode={task.mode} line={task.line} />
               </Link>
             </li>
           ))}

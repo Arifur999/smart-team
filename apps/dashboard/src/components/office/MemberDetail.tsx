@@ -169,7 +169,7 @@ function LiveTail({ taskId }: { taskId: string }) {
   return (
     <div className="mt-3 flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between gap-2">
-        {task && <TaskStatusBadge status={task.status} mode={task.mode} />}
+        {task && <TaskStatusBadge status={task.status} mode={task.mode} line={task.line} />}
         <Link href={`/tasks/${taskId}`} className="text-sm font-medium text-accent hover:underline">
           Open terminal →
         </Link>

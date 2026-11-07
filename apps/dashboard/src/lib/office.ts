@@ -125,6 +125,20 @@ const offDuty = (): Activity => ({ room: 'rest', label: 'Off duty', tone: 'off',
  * running tasks and the first worker carries out the approved one. Others idle in the lounge, and
  * agents that start in later phases sleep in the rest room.
  */
+/** Where each production-line stage happens in the office. */
+const STAGE_ROOMS: Record<string, RoomId> = {
+  source: 'lab',
+  sound: 'lab',
+  plan: 'command',
+  screening: 'command',
+  storyboard: 'workspace',
+  animate: 'workspace',
+  variants: 'workspace',
+  'storyboard-check': 'meeting',
+  critique: 'meeting',
+  'final-qa': 'approval',
+};
+
 export function officeMembers(teamId: TeamId, tasks: TaskSummary[]): OfficeMember[] {
   const team = TEAMS.find((t) => t.id === teamId) ?? TEAMS[0]!;
   const mine = tasks.filter((t) => t.team === team.id);
@@ -138,7 +152,28 @@ export function officeMembers(teamId: TeamId, tasks: TaskSummary[]): OfficeMembe
   const active = executing ?? planning;
   const firstWorker = team.members.find((m) => m.role === 'worker')?.id;
 
+  // Production line tasks: whoever owns a task's current stage works on it in that stage's room.
+  const onLine = tasks.filter((t) => t.line && t.line.stage && !['done', 'cancelled'].includes(t.line.state));
+  const lineActivity = (member: TeamMember): Activity | null => {
+    const task = onLine.find((t) => t.line!.ownerId === member.id && t.line!.state !== 'waiting');
+    if (!task) return null;
+    const l = task.line!;
+    const room = STAGE_ROOMS[l.stage!] ?? 'workspace';
+    if (l.state === 'working') return { room, label: l.stuck ? `Stuck at ${l.stageLabel}` : `${l.stageLabel}${l.round > 1 ? ` · round ${l.round}` : ''}`, detail: task.title, tone: l.stuck ? 'waiting' : 'busy', pose: 'type', taskId: task.id };
+    if (l.state === 'blocked') return { room, label: `Stopped at ${l.stageLabel}`, detail: task.title, tone: 'waiting', pose: 'stand', taskId: task.id };
+    return { room, label: l.state === 'paused' ? 'Paused for the usage limit' : `Next: ${l.stageLabel}`, detail: task.title, tone: 'waiting', pose: 'stand', taskId: task.id };
+  };
+  const lineWaiting = onLine.find((t) => t.team === team.id && t.line!.state === 'waiting');
+  const lineActive = onLine.find((t) => t.team === team.id && t.line!.state === 'working');
+
   const activityOf = (member: TeamMember): Activity => {
+    const onStage = lineActivity(member);
+    if (onStage) return onStage;
+    if (member.role === 'leader' && lineWaiting) {
+      const l = lineWaiting.line!;
+      return { room: 'approval', label: l.stage === 'review' ? 'Waiting for your review' : `Waiting for you: ${l.stageLabel}`, detail: lineWaiting.title, tone: 'waiting', pose: 'stand', taskId: lineWaiting.id };
+    }
+    if (member.role === 'leader' && lineActive) return { room: 'command', label: 'Running the line', detail: lineActive.title, tone: 'busy', pose: 'type', taskId: lineActive.id };
     switch (member.role) {
       case 'intake':
         if (checkingBrief) return { room: 'briefing', label: 'Checking the brief', detail: checkingBrief.title, tone: 'busy', pose: 'type', taskId: checkingBrief.id };
