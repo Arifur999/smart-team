@@ -144,7 +144,14 @@ function openLog(name) {
 function readPid() {
   if (!existsSync(pidFile)) return null;
   const pid = Number(readFileSync(pidFile, 'utf8'));
-  return pid && alive(pid) ? pid : null;
+  return pid && alive(pid) && isNode(pid) ? pid : null;
+}
+
+/** A pid left behind by a crash or a shutdown may now belong to another program; only a Node process is us. */
+function isNode(pid) {
+  if (process.platform !== 'win32') return true;
+  const list = spawnSync('tasklist', ['/FI', `PID eq ${pid}`, '/FO', 'CSV', '/NH'], { encoding: 'utf8' });
+  return /^"node\.exe"/i.test(list.stdout ?? '');
 }
 
 function alive(pid) {
