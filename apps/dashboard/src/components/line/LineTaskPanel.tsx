@@ -65,7 +65,7 @@ export function LineSettingsChips({ task }: { task: TaskDetail }) {
 }
 
 /** Approve, send back, retry and skip: only what the line allows right now. */
-export function LineActionsBar({ task }: { task: TaskDetail }) {
+export function LineActionsBar({ task, onDone }: { task: TaskDetail; onDone?: () => void }) {
   const [open, setOpen] = useState<'send-back' | 'retry' | null>(null);
   const [text, setText] = useState('');
   const [stage, setStage] = useState('');
@@ -88,6 +88,8 @@ export function LineActionsBar({ task }: { task: TaskDetail }) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      // Show the real state at once, without waiting for the live update (it may have been missed).
+      onDone?.();
     }
   };
 
@@ -97,7 +99,7 @@ export function LineActionsBar({ task }: { task: TaskDetail }) {
       <div className="flex flex-wrap justify-end gap-2">
         {actions.includes('approve') && (
           <button disabled={busy} onClick={() => act(() => api.lineApprove(task.id))} className="rounded-lg bg-foreground px-3 py-1.5 text-sm font-medium text-background disabled:opacity-60">
-            {approveLabel}
+            {busy ? 'Approving…' : approveLabel}
           </button>
         )}
         {actions.includes('send-back') && (
@@ -163,7 +165,11 @@ export function LineActionsBar({ task }: { task: TaskDetail }) {
           </div>
         </form>
       )}
-      {error && <span className="text-xs text-danger">{error}</span>}
+      {error && (
+        <p role="alert" className="max-w-md rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

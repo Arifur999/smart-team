@@ -37,7 +37,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const message = Array.isArray(body?.message) ? body.message.join(', ') : body?.message;
     throw new ApiError(message || `The hub answered ${res.status}.`);
   }
-  return res.status === 202 || res.status === 204 ? (undefined as T) : res.json();
+  if (res.status === 202 || res.status === 204) {
+    // Read the (empty) body anyway: an unread body is cancelled and shows as a failed request in the browser.
+    await res.text().catch(() => '');
+    return undefined as T;
+  }
+  return res.json();
 }
 
 const post = (body?: unknown): RequestInit => ({ method: 'POST', ...(body === undefined ? {} : { body: JSON.stringify(body) }) });

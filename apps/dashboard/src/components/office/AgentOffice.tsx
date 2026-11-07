@@ -23,7 +23,7 @@ type Panel = 'terminal' | 'member';
 
 export function AgentOffice() {
   const router = useRouter();
-  const { tasks } = useTasks();
+  const { tasks, reload } = useTasks();
   const { devices, connection } = useDevices();
   const [teamId, setTeamId] = useOfficeTeam();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export function AgentOffice() {
     <main id="main" className="mx-auto w-full max-w-[1600px] flex-1 px-4 py-4 sm:px-6">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
         <div className="min-w-0 flex-1">
-          <NeedsYou waiting={waiting} onOpen={openTask} />
+          <NeedsYou waiting={waiting} onOpen={openTask} onDone={reload} />
         </div>
         <div className="rounded-lg border border-line bg-surface px-3 py-2 lg:max-w-[55%]">
           <PhaseSteps task={focus} />

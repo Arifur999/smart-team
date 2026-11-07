@@ -16,7 +16,7 @@ type Compare = 'reference' | 'previous';
  * playing in step, with the critic's notes, every version's score and your decision.
  */
 export function ReviewBooth({ taskId }: { taskId: string }) {
-  const { task, error } = useTask(taskId);
+  const { task, error, reload } = useTask(taskId);
   const { versions, error: versionsError } = useVersions(taskId);
   const [picked, setPicked] = useState<number | null>(null);
   const [compare, setCompare] = useState<Compare>('reference');
@@ -86,7 +86,7 @@ export function ReviewBooth({ taskId }: { taskId: string }) {
           <aside className="space-y-4">
             <VersionList list={list} current={current} onPick={setPicked} line={line} />
             {current && <CriticNotes version={current} onSeek={() => {}} />}
-            {atReview && current && <Decision task={task} version={current.n} time={0} />}
+            {atReview && current && <Decision task={task} version={current.n} time={0} onDone={reload} />}
           </aside>
         </div>
       ) : (
@@ -110,7 +110,7 @@ export function ReviewBooth({ taskId }: { taskId: string }) {
           <aside className="space-y-4">
             <VersionList list={list} current={current} onPick={setPicked} line={line} />
             {current && <CriticNotes version={current} onSeek={sync.seek} />}
-            {atReview && current && <Decision task={task} version={current.n} time={sync.time} />}
+            {atReview && current && <Decision task={task} version={current.n} time={sync.time} onDone={reload} />}
           </aside>
         </div>
       )}
@@ -375,7 +375,7 @@ function Strip({ title, files }: { title: string; files: DeliverableView[] }) {
   );
 }
 
-function Decision({ task, version, time }: { task: TaskDetail; version: number; time: number }) {
+function Decision({ task, version, time, onDone }: { task: TaskDetail; version: number; time: number; onDone: () => void }) {
   const line = lineByKey(task.line!.key)!;
   const targets = mainGate(line)?.gate?.fixTargets ?? [];
   const [mode, setMode] = useState<'idle' | 'confirm' | 'send'>('idle');
@@ -397,6 +397,7 @@ function Decision({ task, version, time }: { task: TaskDetail; version: number; 
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      onDone();
     }
   };
 

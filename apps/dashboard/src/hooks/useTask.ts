@@ -31,14 +31,19 @@ export function useTask(taskId: string) {
       if (summary.id === taskId) reload();
     };
 
+    // After a lost connection, watch again and reload: updates sent meanwhile never arrived.
+    const onConnect = () => {
+      watch();
+      reload();
+    };
     watch();
-    socket.on('connect', watch);
+    socket.on('connect', onConnect);
     socket.on(DashboardEvents.taskLog, onLog);
     socket.on(DashboardEvents.taskUpdated, onUpdated);
     reload();
     return () => {
       socket.emit(DashboardEvents.unwatchTask, taskId);
-      socket.off('connect', watch);
+      socket.off('connect', onConnect);
       socket.off(DashboardEvents.taskLog, onLog);
       socket.off(DashboardEvents.taskUpdated, onUpdated);
     };

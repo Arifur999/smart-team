@@ -43,6 +43,7 @@ import {
   type StepReason,
 } from './line-router.js';
 import { lineResumeSession } from './resume-rule.js';
+import { approvedJustNow } from './approve-rule.js';
 import { readSettings, skipFlags } from './settings.js';
 import { stagePrompt, stageSystemPrompt, writeScope, type EarlierStage } from './stage-prompts.js';
 import { notesFromYou } from './verdict.js';
@@ -69,7 +70,7 @@ interface Ctx {
   settings: LineSettings;
   flags: SkipWhen[];
   brief: { summary: string | null; answers: Record<string, string> };
-  steps: (StepLite & { ownerId: string; summary: string | null; result: unknown; notes: FixNote[]; kind: 'WORK' | 'GATE' | 'CHECK' })[];
+  steps: (StepLite & { ownerId: string; summary: string | null; finishedAt: Date | null; result: unknown; notes: FixNote[]; kind: 'WORK' | 'GATE' | 'CHECK' })[];
 }
 
 /**
@@ -211,7 +212,11 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
     await this.handle(taskId, async (tx) => {
       const ctx = await this.context(tx, taskId);
       const step = this.current(ctx);
-      if (!step || step.status !== 'WAITING' || (step.kind !== 'CHECK' && step.kind !== 'GATE')) throw new ConflictException('Nothing is waiting for your approval.');
+      if (!step || step.status !== 'WAITING' || (step.kind !== 'CHECK' && step.kind !== 'GATE')) {
+        // A second click, or a click on a page that missed the update: you already approved it, so say yes again.
+        if (approvedJustNow(ctx.steps)) return {};
+        throw new ConflictException('Nothing is waiting for your approval right now. The page was out of date; it shows the current state now.');
+      }
       await this.finishStep(tx, step.id, 'DONE', { decidedBy: YOU, comment: comment?.trim() || null, finishedAt: new Date() });
       if (this.stageOf(ctx, step.stage).final) return {};
       return this.enter(tx, ctx, nextAfterDone({ ...step, reason: step.kind === 'GATE' ? 'line' : step.reason }, ctx.steps, ctx.line));
@@ -434,7 +439,7 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
         brief: { select: { summary: true, answers: true } },
         steps: {
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-          select: { id: true, stage: true, status: true, round: true, reason: true, route: true, causedById: true, decidedBy: true, ownerId: true, summary: true, result: true, notes: true, kind: true },
+          select: { id: true, stage: true, status: true, round: true, reason: true, route: true, causedById: true, decidedBy: true, finishedAt: true, ownerId: true, summary: true, result: true, notes: true, kind: true },
         },
       },
     });
@@ -515,7 +520,7 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
         decidedBy: extra.decidedBy ?? null,
         finishedAt: extra.finishedAt ?? null,
       },
-      select: { id: true, stage: true, status: true, round: true, reason: true, causedById: true, decidedBy: true, ownerId: true, summary: true, kind: true },
+      select: { id: true, stage: true, status: true, round: true, reason: true, causedById: true, decidedBy: true, finishedAt: true, ownerId: true, summary: true, kind: true },
     });
     const step = { ...row, reason: row.reason as StepReason, route: null, result: null, notes: entry.notes };
     ctx.steps.push(step);

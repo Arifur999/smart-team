@@ -147,7 +147,12 @@ export class TasksService {
 
   async approve(taskId: string): Promise<void> {
     const run = await this.newestRun(taskId);
-    if (taskStatus(run) !== 'AWAITING_APPROVAL') throw new ConflictException('There is no plan waiting for approval.');
+    if (taskStatus(run) !== 'AWAITING_APPROVAL') {
+      // A second click: the plan was approved moments ago and its work run is already queued or going.
+      const recent = await this.prisma.run.findUnique({ where: { id: run.id }, select: { prompt: true, createdAt: true } });
+      if (run.mode === 'EXECUTE' && recent?.prompt === APPROVAL_PROMPT && Date.now() - recent.createdAt.getTime() < 2 * 60_000) return;
+      throw new ConflictException('There is no plan waiting for approval right now. The page was out of date; it shows the current state now.');
+    }
     await this.addRun(taskId, { ...continueFrom(run), prompt: APPROVAL_PROMPT, mode: 'EXECUTE' });
   }
 

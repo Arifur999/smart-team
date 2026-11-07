@@ -24,9 +24,12 @@ export function needsYou(task: TaskSummary): boolean {
 export function NeedsYou({
   waiting,
   onOpen,
+  onDone,
 }: {
   waiting: TaskSummary[];
   onOpen: (task: TaskSummary) => void;
+  /** Reloads the tasks after an action, so the bar shows the real state even if a live update was missed. */
+  onDone?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +44,7 @@ export function NeedsYou({
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      onDone?.();
     }
   }
 
@@ -87,7 +91,11 @@ export function NeedsYou({
         {what}: {task.title}
       </button>
       <span className="ml-auto flex gap-2">
-        {error && <span className="text-xs text-danger">{error}</span>}
+        {error && (
+          <span role="alert" className="rounded bg-danger-soft px-2 py-0.5 text-xs font-medium text-danger">
+            {error}
+          </span>
+        )}
         {line ? (
           <Link
             href={

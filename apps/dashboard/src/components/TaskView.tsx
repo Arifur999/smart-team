@@ -11,7 +11,7 @@ import { TaskStatusBadge } from './TaskStatusBadge';
 import { Terminal } from './Terminal';
 
 export function TaskView({ taskId }: { taskId: string }) {
-  const { task, error } = useTask(taskId);
+  const { task, error, reload } = useTask(taskId);
 
   if (error) {
     return (
@@ -42,9 +42,9 @@ export function TaskView({ taskId }: { taskId: string }) {
         <div className="flex flex-col items-end gap-2">
           <div className="flex items-center gap-2">
             <TaskStatusBadge status={task.status} mode={task.mode} line={task.line} />
-            <TaskActions task={task} />
+            <TaskActions task={task} onDone={reload} />
           </div>
-          {task.status !== 'INTAKE' && <LineActionsBar task={task} />}
+          {task.status !== 'INTAKE' && <LineActionsBar task={task} onDone={reload} />}
         </div>
       </header>
 
@@ -90,7 +90,7 @@ export function TaskView({ taskId }: { taskId: string }) {
   );
 }
 
-function TaskActions({ task }: { task: TaskDetail }) {
+function TaskActions({ task, onDone }: { task: TaskDetail; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // A task in intake can be cancelled too: nothing has been planned or changed yet.
@@ -105,19 +105,25 @@ function TaskActions({ task }: { task: TaskDetail }) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      // Show the real state at once, without waiting for the live update (it may have been missed).
+      onDone();
     }
   }
 
   return (
     <>
-      {error && <span className="text-xs text-danger">{error}</span>}
+      {error && (
+        <span role="alert" className="rounded-lg bg-danger-soft px-2.5 py-1 text-xs font-medium text-danger">
+          {error}
+        </span>
+      )}
       {task.canApprove && !task.line && (
         <button
           disabled={busy}
           onClick={() => act(() => api.approve(task.id))}
           className="rounded-lg bg-foreground px-3 py-1.5 text-sm font-medium text-background disabled:opacity-60"
         >
-          Approve plan
+          {busy ? 'Approving…' : 'Approve plan'}
         </button>
       )}
       {running && (
