@@ -10,3 +10,6 @@ apps/hub/uploads/
 apps/node-agent/agent.config.json
 data/
 logs/
+
+# Client brand kits and other PC-only skills
+skill-packs/local/

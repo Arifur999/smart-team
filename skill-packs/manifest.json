@@ -1,9 +1,13 @@
 {
-  "$comment": "Which Claude Code skills each role gets. Keys are \"planner\" or \"<team>.<role>\" (leader, worker, reference, qa). A trailing * matches every skill with that prefix. Skills are looked up in skill-packs/skills first, then in the hub PC's SKILL_DIRS (default ~/.claude/skills). Missing skills are reported on the dashboard and skipped.",
+  "$comment": "Which skills each member gets. A production-line stage loads `line` + its member's role key + its member key (+ the client's brand kit when the brief names the client, from skill-packs/local/<client>-brand). Classic plan/execute runs load roles.planner and roles.<team>.worker. Keys: roles = \"planner\", \"final-qa\", \"manager\", \"intake\" or \"<team>.<role>\"; members = \"<team>.<memberId>\" or a leadership member id. A trailing * matches every skill with that prefix. Skills come from skill-packs/skills, then skill-packs/local, then SKILL_DIRS; missing ones are logged and skipped.",
+  "line": ["production-line", "house-rules"],
   "roles": {
     "planner": ["problem-solving"],
+    "intake": ["intake-brief"],
+    "final-qa": ["final-qa", "humanizer"],
+    "manager": ["problem-solving", "team-review", "house-rules", "skill-creator"],
 
-    "nextDev.leader": ["problem-solving", "db-design", "arif-code-review", "clean-refactor"],
+    "nextDev.leader": ["problem-solving", "team-review"],
     "nextDev.worker": [
       "nextjs-app-setup",
       "nextjs-feature",
@@ -16,20 +20,49 @@
       "clean-refactor",
       "ui-ux-visual-designer"
     ],
-    "nextDev.qa": ["arif-code-review", "security-audit", "debugging"],
+    "nextDev.qa": ["dev-qa", "arif-code-review", "security-audit", "debugging"],
 
-    "nextEditor.leader": ["video-production"],
-    "nextEditor.worker": ["hyperframes", "hyperframes-cli", "hyperframes-registry", "media-use", "remotion-*"],
-    "nextEditor.reference": ["media-use"],
-    "nextEditor.qa": [],
+    "nextEditor.leader": ["video-production", "team-review"],
+    "nextEditor.worker": ["hyperframes", "hyperframes-cli", "hyperframes-registry", "media-use", "video-production"],
+    "nextEditor.reference": ["reference-match", "video-production"],
+    "nextEditor.qa": ["video-qa", "video-production"],
 
-    "nextDesign.leader": ["ui-ux-visual-designer", "brand-identity-designer"],
-    "nextDesign.worker": ["ui-ux-visual-designer", "dashboard-ui", "brand-identity-designer"],
-    "nextDesign.reference": [],
-    "nextDesign.qa": [],
+    "nextDesign.leader": ["ui-ux-visual-designer", "brand-identity-designer", "team-review"],
+    "nextDesign.worker": ["ui-ux-visual-designer", "brand-identity-designer"],
+    "nextDesign.reference": ["design-reference-match"],
+    "nextDesign.qa": ["design-qa", "design-critique", "accessibility-audit"],
 
-    "NextMarketer.leader": [],
-    "NextMarketer.worker": [],
-    "NextMarketer.qa": []
+    "NextMarketer.leader": ["marketing-strategy", "team-review"],
+    "NextMarketer.worker": ["humanizer", "copywriting"],
+    "NextMarketer.qa": ["marketing-qa", "humanizer"]
+  },
+  "members": {
+    "captain-marvel": ["video-production", "accessibility-audit"],
+    "nick-fury": [],
+
+    "nextDev.iron-man": ["db-design", "arif-code-review", "clean-refactor", "security-audit"],
+    "nextDev.hulk": [],
+    "nextDev.spider-man": ["frontend-design"],
+    "nextDev.black-panther": ["db-design", "security-audit"],
+    "nextDev.vision": [],
+
+    "nextEditor.cyclops": ["reference-match", "video-qa", "motion-light-recipes", "hyperframes"],
+    "nextEditor.wolverine": ["hyperframes-cli", "media-use"],
+    "nextEditor.jean-grey": ["storyboard-keyframes", "motion-light-recipes", "sound-pass"],
+    "nextEditor.storm": ["motion-light-recipes", "remotion-*"],
+    "nextEditor.beast": ["reference-match", "motion-light-recipes", "hyperframes-cli"],
+
+    "nextDesign.mister-fantastic": ["creative", "design-qa"],
+    "nextDesign.silver-surfer": ["map-design", "hyperframes-cli"],
+    "nextDesign.invisible-woman": ["frontend-design", "dashboard-ui", "interaction-design", "ux-writing", "accessibility-audit"],
+    "nextDesign.human-torch": ["creative"],
+    "nextDesign.the-thing": [],
+
+    "NextMarketer.superman": [],
+    "NextMarketer.lois-lane": ["deep-research", "market-research"],
+    "NextMarketer.flash": ["ux-writing"],
+    "NextMarketer.aquaman": ["social-content", "prompt-master"],
+    "NextMarketer.green-lantern": ["seo-ads", "deep-research"],
+    "NextMarketer.martian-manhunter": []
   }
 }

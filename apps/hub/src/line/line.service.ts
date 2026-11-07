@@ -582,7 +582,7 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
       ...(stage.maxTurns ? { maxTurns: stage.maxTurns } : {}),
       ...(stage.timeoutMinutes ? { timeoutMinutes: stage.timeoutMinutes } : {}),
       ...(stage.model ? { model: stage.model } : {}),
-      skillKeys: [...memberSkillKeys(member.id), ...(stage.skills ?? [])],
+      skillKeys: [...memberSkillKeys(member.id), ...(stage.skills ?? []), ...this.brandKits(ctx).map((k) => `skill:${k}`)],
     };
 
     await tx.run.create({
@@ -616,6 +616,19 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  /** Words of the brief that name clients: the title, every answer and the summary. */
+  private briefText(ctx: Ctx): string {
+    return `${ctx.task.title} ${Object.values(ctx.brief.answers).join(' ')} ${ctx.brief.summary ?? ''}`.toLowerCase();
+  }
+
+  /** Client brand kits the brief mentions: skill-packs/local/<client>-brand loads when the brief names <client>. */
+  private brandKits(ctx: Ctx): string[] {
+    const dir = join(getEnv().SKILL_PACKS_DIR, 'local');
+    if (!existsSync(dir)) return [];
+    const text = this.briefText(ctx);
+    return readdirSync(dir).filter((name) => name.endsWith('-brand') && text.includes(name.slice(0, -'-brand'.length).toLowerCase()));
+  }
+
   /** Active house rules for this stage: global, the team's, and the clients the brief mentions. */
   private houseRules(ctx: Ctx, stage: string): HouseRule[] {
     const dir = join(getEnv().SKILL_PACKS_DIR, 'house-rules');
@@ -623,7 +636,7 @@ export class LineService implements OnModuleInit, OnModuleDestroy {
     const files = [join(dir, 'global.md'), join(dir, `${ctx.task.team}.md`)];
     const clientsDir = join(dir, 'clients');
     if (existsSync(clientsDir)) {
-      const text = `${ctx.task.title} ${Object.values(ctx.brief.answers).join(' ')} ${ctx.brief.summary ?? ''}`.toLowerCase();
+      const text = this.briefText(ctx);
       for (const file of readdirSync(clientsDir)) {
         if (file.endsWith('.md') && text.includes(file.slice(0, -3).toLowerCase())) files.push(join(clientsDir, file));
       }

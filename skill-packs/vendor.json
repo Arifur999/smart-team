@@ -1,0 +1,60 @@
+{
+  "$comment": "Skills copied into skill-packs/skills from elsewhere. Re-copy, then rerun scripts/skills-lock.py.",
+  "skills": {
+    "accessibility-audit": {
+      "from": "design-skills plugin, github.com/cuellarfr/design-skills",
+      "license": "MIT",
+      "sha": "402b6d3f7910"
+    },
+    "creative": {
+      "from": "design-superpowers plugin, github.com/LSDimi/design-superpowers",
+      "license": "MIT",
+      "sha": "18560e55421a"
+    },
+    "design-critique": {
+      "from": "design-skills plugin, github.com/cuellarfr/design-skills",
+      "license": "MIT",
+      "sha": "abb73fd01ba9"
+    },
+    "frontend-design": {
+      "from": "claude-plugins-official, frontend-design plugin",
+      "license": "Apache-2.0",
+      "sha": "170597ac6cb1"
+    },
+    "humanizer": {
+      "from": "synced Claude skill, Siqi Chen",
+      "license": "MIT",
+      "sha": "e198a85e02df"
+    },
+    "interaction-design": {
+      "from": "design-skills plugin, github.com/cuellarfr/design-skills",
+      "license": "MIT",
+      "sha": "1d4c4bf2a422"
+    },
+    "map-design": {
+      "from": "design-superpowers plugin, github.com/LSDimi/design-superpowers",
+      "license": "MIT",
+      "sha": "62161ea52670"
+    },
+    "prompt-master": {
+      "from": "synced Claude skill, Nidhin Joseph Nelson",
+      "license": "MIT",
+      "sha": "d41413dac2ae"
+    },
+    "skill-creator": {
+      "from": "synced Claude skill, Anthropic",
+      "license": "Apache-2.0",
+      "sha": "a0821cff5364"
+    },
+    "ux-writing": {
+      "from": "design-skills plugin, github.com/cuellarfr/design-skills",
+      "license": "MIT",
+      "sha": "64a6edb60a1e"
+    },
+    "video-production": {
+      "from": "Arif's own video knowledge base (synced copy)",
+      "license": "own",
+      "sha": "2fb7c588b0c1"
+    }
+  }
+}

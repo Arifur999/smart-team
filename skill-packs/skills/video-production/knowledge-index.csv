@@ -1,0 +1,57 @@
+path,title,section,type,confidence,sources,updated
+00_INTAKE/intake-questionnaire.md,Intake Questionnaire,00_INTAKE,recipe,established,"own-synthesis, saas-motion-kit",2026-10-26
+00_INTAKE/project-brief-template.md,Project Brief Template,00_INTAKE,template,established,"own-synthesis, saas-motion-kit",2026-10-26
+01_MOTION_DESIGN/animation-principles/easing-and-timing.md,Easing and Timing,01_MOTION_DESIGN/animation-principles,rule,established,"own-synthesis, herk-edit-kit",2026-10-26
+01_MOTION_DESIGN/animation-principles/motion-philosophy-rules.md,Motion Philosophy Rules (the house laws),01_MOTION_DESIGN/animation-principles,rule,creator-tested,"herk-edit-kit, saas-motion-kit, own-synthesis",2026-10-26
+01_MOTION_DESIGN/animation-principles/principles-applied-to-video.md,Animation Principles Applied to Video,01_MOTION_DESIGN/animation-principles,principle,established,own-synthesis,2026-10-26
+01_MOTION_DESIGN/README.md,Motion Design — Section Guide,01_MOTION_DESIGN,reference,established,own-synthesis,2026-10-26
+01_MOTION_DESIGN/transitions-and-camera/camera-moves.md,Camera Moves for 2D and 3D Motion Work,01_MOTION_DESIGN/transitions-and-camera,reference,established,"own-synthesis, saas-motion-kit",2026-10-26
+01_MOTION_DESIGN/transitions-and-camera/seam-design.md,Seam Design and Variety Rules,01_MOTION_DESIGN/transitions-and-camera,rule,creator-tested,"saas-motion-kit, herk-edit-kit, own-synthesis",2026-10-26
+01_MOTION_DESIGN/transitions-and-camera/transition-atlas.md,Transition Atlas,01_MOTION_DESIGN/transitions-and-camera,reference,creator-tested,"saas-motion-kit, herk-edit-kit, own-synthesis",2026-10-26
+01_MOTION_DESIGN/typography-animation/kinetic-type-rules.md,Kinetic Type Rules,01_MOTION_DESIGN/typography-animation,rule,creator-tested,"herk-edit-kit, own-synthesis",2026-10-26
+01_MOTION_DESIGN/typography-animation/type-systems-and-pairing.md,Type Systems and Pairing for Video,01_MOTION_DESIGN/typography-animation,reference,creator-tested,"herk-edit-kit, saas-motion-kit, own-synthesis",2026-10-26
+01_MOTION_DESIGN/visual-effects/deterministic-rendering.md,Deterministic and Seek-Safe Rendering,01_MOTION_DESIGN/visual-effects,rule,creator-tested,"saas-motion-kit, herk-edit-kit",2026-10-26
+01_MOTION_DESIGN/visual-effects/texture-light-and-depth.md,"Texture, Light and Depth",01_MOTION_DESIGN/visual-effects,recipe,creator-tested,"herk-edit-kit, own-synthesis",2026-10-26
+02_VIDEO_EDITING/captions-and-titles/caption-style-rules.md,"Caption Style Rules (Burned-In, Short-Form)",02_VIDEO_EDITING/captions-and-titles,rule,creator-tested,"herk-edit-kit, own-synthesis",2026-10-26
+02_VIDEO_EDITING/captions-and-titles/subtitle-timing-standards.md,Subtitle Timing Standards (Long-Form and Broadcast),02_VIDEO_EDITING/captions-and-titles,reference,verify-first,own-synthesis,2026-10-26
+02_VIDEO_EDITING/captions-and-titles/titles-and-lower-thirds.md,Titles and Lower Thirds,02_VIDEO_EDITING/captions-and-titles,rule,established,own-synthesis,2026-10-26
+02_VIDEO_EDITING/color-grading/grading-workflow.md,Colour Grading Workflow,02_VIDEO_EDITING/color-grading,recipe,established,own-synthesis,2026-10-26
+02_VIDEO_EDITING/color-grading/palette-and-meaning.md,Palette and Colour Meaning,02_VIDEO_EDITING/color-grading,rule,creator-tested,"herk-edit-kit, saas-motion-kit, own-synthesis",2026-10-26
+02_VIDEO_EDITING/editing-techniques/b-roll-rules.md,B-Roll Rules and Preference Order,02_VIDEO_EDITING/editing-techniques,rule,creator-tested,herk-edit-kit,2026-10-26
+02_VIDEO_EDITING/editing-techniques/cutting-fundamentals.md,Cutting Fundamentals,02_VIDEO_EDITING/editing-techniques,principle,established,own-synthesis,2026-10-26
+02_VIDEO_EDITING/editing-techniques/qc-checklist.md,QC Checklist (Before Delivery),02_VIDEO_EDITING/editing-techniques,template,creator-tested,"herk-edit-kit, saas-motion-kit, own-synthesis",2026-10-26
+02_VIDEO_EDITING/editing-techniques/transcript-driven-editing.md,Transcript-Driven Editing (Talking-Head Cuts),02_VIDEO_EDITING/editing-techniques,recipe,creator-tested,herk-edit-kit,2026-10-26
+02_VIDEO_EDITING/README.md,Video Editing — Section Guide,02_VIDEO_EDITING,reference,established,own-synthesis,2026-10-26
+02_VIDEO_EDITING/storytelling-and-pacing/brief-to-storyboard-method.md,Brief to Storyboard Method (7 Stages with Gates),02_VIDEO_EDITING/storytelling-and-pacing,recipe,creator-tested,"saas-motion-kit, herk-edit-kit, own-synthesis",2026-10-26
+02_VIDEO_EDITING/storytelling-and-pacing/short-form-playbook.md,"Short-Form Playbook (Reels, Shorts, TikTok)",02_VIDEO_EDITING/storytelling-and-pacing,rule,creator-tested,herk-edit-kit,2026-10-26
+02_VIDEO_EDITING/storytelling-and-pacing/story-structures.md,Story Structures for Short Video,02_VIDEO_EDITING/storytelling-and-pacing,principle,established,"own-synthesis, herk-edit-kit, saas-motion-kit",2026-10-26
+02_VIDEO_EDITING/storytelling-and-pacing/tone-matrix.md,Tone Matrix,02_VIDEO_EDITING/storytelling-and-pacing,reference,creator-tested,"saas-motion-kit, own-synthesis",2026-10-26
+03_AUDIO_ENGINEERING/dialogue-cleanup/dialogue-chain.md,Dialogue Cleanup Chain,03_AUDIO_ENGINEERING/dialogue-cleanup,recipe,established,own-synthesis,2026-10-26
+03_AUDIO_ENGINEERING/dialogue-cleanup/speech-cut-hygiene.md,Speech Cut Hygiene (Audio Side of Editing),03_AUDIO_ENGINEERING/dialogue-cleanup,rule,creator-tested,"herk-edit-kit, own-synthesis",2026-10-26
+03_AUDIO_ENGINEERING/loudness-and-export/delivery-specs.md,Delivery and Export Specs,03_AUDIO_ENGINEERING/loudness-and-export,reference,verify-first,"herk-edit-kit, saas-motion-kit, own-synthesis",2026-10-26
+03_AUDIO_ENGINEERING/loudness-and-export/loudness-targets.md,Loudness Targets,03_AUDIO_ENGINEERING/loudness-and-export,reference,verify-first,"herk-edit-kit, own-synthesis",2026-10-26
+03_AUDIO_ENGINEERING/mixing-and-mastering/ducking-and-eq-recipes.md,"Ducking, EQ and Limiting Recipes",03_AUDIO_ENGINEERING/mixing-and-mastering,recipe,verify-first,own-synthesis,2026-10-26
+03_AUDIO_ENGINEERING/mixing-and-mastering/mix-hierarchy-and-levels.md,Mix Hierarchy and Levels,03_AUDIO_ENGINEERING/mixing-and-mastering,rule,creator-tested,"herk-edit-kit, own-synthesis",2026-10-26
+03_AUDIO_ENGINEERING/README.md,Audio Engineering — Section Guide,03_AUDIO_ENGINEERING,reference,established,own-synthesis,2026-10-26
+03_AUDIO_ENGINEERING/sound-design/music-selection-and-bed.md,Music Selection and Music Bed,03_AUDIO_ENGINEERING/sound-design,rule,creator-tested,"herk-edit-kit, saas-motion-kit, own-synthesis",2026-10-26
+03_AUDIO_ENGINEERING/sound-design/sfx-palette-rules.md,Sound Effect Palette Rules,03_AUDIO_ENGINEERING/sound-design,rule,creator-tested,"herk-edit-kit, saas-motion-kit, own-synthesis",2026-10-26
+04_SOFTWARE_MANUALS/audio-tools/audio-tools-landscape.md,Audio and Transcription Tools — What to Use for What,04_SOFTWARE_MANUALS/audio-tools,reference,verify-first,"own-synthesis, herk-edit-kit",2026-10-26
+04_SOFTWARE_MANUALS/ffmpeg/ffmpeg-cookbook.md,ffmpeg Cookbook,04_SOFTWARE_MANUALS/ffmpeg,recipe,verify-first,own-synthesis,2026-10-26
+04_SOFTWARE_MANUALS/ffmpeg/ffmpeg-qc-and-sync.md,ffmpeg QC and Sync Verification Recipes,04_SOFTWARE_MANUALS/ffmpeg,recipe,verify-first,"herk-edit-kit, saas-motion-kit, own-synthesis",2026-10-26
+04_SOFTWARE_MANUALS/other-tools/claude-code-skills-and-github-setup.md,"Skill Install, Maintenance and GitHub Setup",04_SOFTWARE_MANUALS/other-tools,recipe,verify-first,"herk-edit-kit, saas-motion-kit, own-synthesis",2026-10-26
+04_SOFTWARE_MANUALS/other-tools/hyperframes-manual.md,HyperFrames Manual (House Notes),04_SOFTWARE_MANUALS/other-tools,reference,verify-first,"hyperframes-repo, saas-motion-kit, herk-edit-kit",2026-10-26
+04_SOFTWARE_MANUALS/README.md,Software Manuals — Section Guide,04_SOFTWARE_MANUALS,reference,verify-first,"own-synthesis, herk-edit-kit, saas-motion-kit",2026-10-26
+04_SOFTWARE_MANUALS/remotion/remotion-core.md,Remotion Core Manual (House Notes),04_SOFTWARE_MANUALS/remotion,reference,verify-first,"remotion-repo, own-synthesis",2026-10-26
+04_SOFTWARE_MANUALS/remotion/remotion-patterns.md,Remotion Patterns for This Ecosystem,04_SOFTWARE_MANUALS/remotion,recipe,verify-first,"own-synthesis, herk-edit-kit",2026-10-26
+05_RESEARCH_NOTES/lessons-learned/lesson-template.md,Lesson Template,05_RESEARCH_NOTES/lessons-learned,template,established,own-synthesis,2026-10-26
+05_RESEARCH_NOTES/lessons-learned/lessons-log.md,Lessons Log,05_RESEARCH_NOTES/lessons-learned,log,creator-tested,"herk-edit-kit, saas-motion-kit, own-synthesis",2026-10-26
+05_RESEARCH_NOTES/lessons-learned/note-to-rule-loop.md,The Note-to-Rule Loop,05_RESEARCH_NOTES/lessons-learned,recipe,creator-tested,"herk-edit-kit, own-synthesis",2026-10-26
+05_RESEARCH_NOTES/README.md,Research Notes — Section Guide,05_RESEARCH_NOTES,reference,established,own-synthesis,2026-10-26
+05_RESEARCH_NOTES/technique-breakdowns/breakdown-template.md,Technique Breakdown Template,05_RESEARCH_NOTES/technique-breakdowns,template,established,"saas-motion-kit, own-synthesis",2026-10-26
+05_RESEARCH_NOTES/technique-breakdowns/kit-analysis-herk-edit-kit.md,Kit Analysis — herk-edit-kit,05_RESEARCH_NOTES/technique-breakdowns,reference,creator-tested,herk-edit-kit,2026-10-26
+05_RESEARCH_NOTES/technique-breakdowns/kit-analysis-saas-motion-kit.md,Kit Analysis — saas-motion-kit,05_RESEARCH_NOTES/technique-breakdowns,reference,creator-tested,saas-motion-kit,2026-10-26
+05_RESEARCH_NOTES/technique-breakdowns/reference-credit-policy.md,Reference Credit Policy,05_RESEARCH_NOTES/technique-breakdowns,rule,creator-tested,"saas-motion-kit, own-synthesis",2026-10-26
+05_RESEARCH_NOTES/workflow-experiments/experiment-log.md,Experiment Log,05_RESEARCH_NOTES/workflow-experiments,log,established,own-synthesis,2026-10-26
+05_RESEARCH_NOTES/workflow-experiments/experiment-template.md,Workflow Experiment Template,05_RESEARCH_NOTES/workflow-experiments,template,established,own-synthesis,2026-10-26
+README.md,Knowledge Base — Start Here,root,reference,established,own-synthesis,2026-10-26
+SOURCES.md,Sources and Credits,root,reference,established,own-synthesis,2026-10-26

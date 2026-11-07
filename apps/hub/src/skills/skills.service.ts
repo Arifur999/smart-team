@@ -6,7 +6,7 @@ import { skillRoleKey, type RoleSkills, type RunMode, type SkillBundle, type Ski
 import { getEnv } from '../env.js';
 
 /** Files and folders never shipped with a skill. */
-const SKIP = new Set(['node_modules', '.git', '.DS_Store', 'Thumbs.db']);
+const SKIP = new Set(['node_modules', '.git', '.DS_Store', 'Thumbs.db', '__pycache__']);
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 interface FoundSkill extends SkillRef {
@@ -72,7 +72,11 @@ export class SkillsService implements OnModuleInit {
 
   /** The skills of a production-line stage: the line's own plus those of the given manifest keys (role, member, extras). */
   forKeys(keys: string[]): SkillRef[] {
-    const patterns = [...this.manifest.line, ...keys.flatMap((k) => this.manifest.roles[k] ?? this.manifest.members[k] ?? [])];
+    // "skill:<name>" asks for one skill by name (a client's brand kit); other keys are manifest roles or members.
+    const patterns = [
+      ...this.manifest.line,
+      ...keys.flatMap((k) => (k.startsWith('skill:') ? [k.slice(6)] : (this.manifest.roles[k] ?? this.manifest.members[k] ?? []))),
+    ];
     return [...new Set(this.expand(patterns))].flatMap((n) => {
       const s = this.skills.get(n);
       return s ? [{ name: s.name, version: s.version }] : [];
